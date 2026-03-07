@@ -353,42 +353,23 @@ def is_round_amount(amount: int) -> bool:
 # ============================================================
 
 
-def create_merchant_pools(cities, weights, n_normal_qris=3500, n_normal_ewallet=1500,
-                          n_judol_qris=300, n_judol_ewallet=200) -> tuple:
-    """Pre-generate merchant pools with fixed city assignments.
-    
-    Separate QRIS and e-wallet pools to control cardinality.
-    Normal: 3500 QRIS + 1500 e-wallet = 5000 total
-    Judol:  300 QRIS + 200 e-wallet = 500 total
-    """
+def create_merchant_pools(cities, weights, n_normal=5000, n_judol=500) -> tuple:
+    """Pre-generate merchant pools with fixed city assignments. All QRIS."""
     normal_merchants = []
-    for i in range(n_normal_qris + n_normal_ewallet):
+    for _ in range(n_normal):
         city, province = pick_city_weighted(cities, weights)
         is_24h = random.random() < NORMAL_24H_MERCHANT_RATIO
-        if i < n_normal_qris:
-            mid = generate_nmid()
-            tx_type = "QRIS"
-        else:
-            provider = random.choice(EWALLET_PROVIDERS)
-            mid = f"{provider}-{generate_phone_number()}"
-            tx_type = f"EWALLET_{provider}"
         normal_merchants.append(
-            {"merchant_id": mid, "city": city, "province": province,
-             "is_24h": is_24h, "tx_type": tx_type}
+            {"merchant_id": generate_nmid(), "city": city, "province": province,
+             "is_24h": is_24h, "tx_type": "QRIS"}
         )
 
     judol_merchants = []
-    for i in range(n_judol_qris + n_judol_ewallet):
+    for _ in range(n_judol):
         city, province = pick_city_weighted(cities, weights)
-        if i < n_judol_qris:
-            mid = generate_nmid()
-            tx_type = "QRIS"
-        else:
-            provider = random.choice(EWALLET_PROVIDERS)
-            mid = f"{provider}-{generate_phone_number()}"
-            tx_type = f"EWALLET_{provider}"
         judol_merchants.append(
-            {"merchant_id": mid, "city": city, "province": province, "tx_type": tx_type}
+            {"merchant_id": generate_nmid(), "city": city, "province": province,
+             "tx_type": "QRIS"}
         )
 
     return normal_merchants, judol_merchants
@@ -685,9 +666,7 @@ def generate_full_dataset():
     # Create entity pools
     print("\n[2/6] Creating entity pools...")
     normal_merchants, judol_merchants = create_merchant_pools(
-        cities, weights,
-        n_normal_qris=3500, n_normal_ewallet=1500,
-        n_judol_qris=300, n_judol_ewallet=200,
+        cities, weights, n_normal=5000, n_judol=500
     )
     normal_users, judol_users = create_user_pools(
         cities, weights, n_normal=50000, n_judol=2000

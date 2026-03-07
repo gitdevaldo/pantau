@@ -156,58 +156,24 @@ def assign_realistic_ids(df: pd.DataFrame) -> pd.DataFrame:
     df_normal["user_id"] = capped_assign(normal_user_pool, len(df_normal), MAX_TX_PER_USER)
     df_judol["user_id"] = capped_assign(judol_user_pool, len(df_judol), MAX_TX_PER_USER)
 
-    # --- Generate merchant ID pools PER TRANSACTION TYPE ---
-    # This prevents format mismatch (QRIS merchant assigned to EWALLET tx)
-    print("  Generating merchant ID pools per transaction type...")
+    # --- Generate QRIS merchant ID pools ---
+    print("  Generating merchant ID pools (all QRIS)...")
 
-    def generate_typed_merchant_pools(df_subset, target_total, rng):
-        """Generate merchant pools split by transaction type."""
-        type_dist = df_subset["transaction_type"].value_counts(normalize=True)
-        pools = {}
-        for tx_type, frac in type_dist.items():
-            n = max(int(target_total * frac), 1)
-            pool = set()
-            while len(pool) < n:
-                if tx_type == "QRIS":
-                    pool.add(generate_merchant_id_qris(rng))
-                elif tx_type.startswith("EWALLET_"):
-                    provider = tx_type.replace("EWALLET_", "")
-                    pool.add(generate_merchant_id_ewallet(provider, rng))
-                else:
-                    pool.add(generate_merchant_id_qris(rng))
-            pools[tx_type] = list(pool)
-        return pools
+    def generate_qris_pool(n, rng):
+        pool = set()
+        while len(pool) < n:
+            pool.add(generate_merchant_id_qris(rng))
+        return list(pool)
 
-    normal_merchant_pools = generate_typed_merchant_pools(df_normal, TARGET_NORMAL_MERCHANTS, rng)
-    judol_merchant_pools = generate_typed_merchant_pools(df_judol, TARGET_JUDOL_MERCHANTS, rng)
+    normal_merchant_pool = generate_qris_pool(TARGET_NORMAL_MERCHANTS, rng)
+    judol_merchant_pool = generate_qris_pool(TARGET_JUDOL_MERCHANTS, rng)
 
-    # Assign merchants from correct pool per transaction type
-    def capped_assign_by_type(df_subset, pools, max_tx):
-        assignments = []
-        counts = {}
-        for _, row in df_subset.iterrows():
-            tx_type = row["transaction_type"]
-            pool = pools.get(tx_type, pools.get("QRIS", []))
-            pool_size = len(pool)
-            assigned = False
-            for _attempt in range(50):
-                idx = np_rng.randint(0, pool_size)
-                entity = pool[idx]
-                if counts.get(entity, 0) < max_tx:
-                    counts[entity] = counts.get(entity, 0) + 1
-                    assignments.append(entity)
-                    assigned = True
-                    break
-            if not assigned:
-                for eid in pool:
-                    if counts.get(eid, 0) < max_tx:
-                        counts[eid] = counts.get(eid, 0) + 1
-                        assignments.append(eid)
-                        break
-        return assignments
+    df_normal["merchant_id"] = capped_assign(normal_merchant_pool, len(df_normal), MAX_TX_PER_MERCHANT)
+    df_judol["merchant_id"] = capped_assign(judol_merchant_pool, len(df_judol), MAX_TX_PER_MERCHANT)
 
-    df_normal["merchant_id"] = capped_assign_by_type(df_normal, normal_merchant_pools, MAX_TX_PER_MERCHANT)
-    df_judol["merchant_id"] = capped_assign_by_type(df_judol, judol_merchant_pools, MAX_TX_PER_MERCHANT)
+    # Force all transactions to QRIS
+    df_normal["transaction_type"] = "QRIS"
+    df_judol["transaction_type"] = "QRIS"
 
     # --- Regenerate transaction_id and device_id ---
     df_out = pd.concat([df_normal, df_judol]).sample(frac=1, random_state=SEED).reset_index(drop=True)
