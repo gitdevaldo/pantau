@@ -1,0 +1,28 @@
+======================================================================
+  PANTAU — Training Report
+  Dataset: gan (data/generated/gan/pantau_gan_ctgan.csv)
+  Date: 2026-03-07 20:26:53
+======================================================================
+
+  Layer                      Precision     Recall         F1     Time
+  -----------------------------------------------------------------
+  1. User Behavior              0.4343     0.4780     0.4551   173.6s
+  2. Merchant Behavior          0.4011     0.4209     0.4108   289.5s
+  3. Network Clustering         0.3118     0.3271     0.3193   137.1s
+  4. Temporal Pattern           0.2711     0.0096     0.0186   112.1s
+  5. Velocity Delta             0.6692     0.0080     0.0157     1.0s
+  6. Money Flow                 0.4505     0.2066     0.2833   187.0s
+  -----------------------------------------------------------------
+  COMBINED                      0.9577     0.0981     0.1780   900.2s
+
+  Avg score (normal): 18.4
+  Avg score (judol):  34.4
+
+  Risk distribution:
+    Critical: 0
+    High Risk: 240
+    Normal: 488,381
+    Suspicious: 11,379
+
+  Total time: 902.2s
+======================================================================
