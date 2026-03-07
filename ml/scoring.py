@@ -2,22 +2,22 @@
 Pantau ML — Combined Risk Scoring Engine
 ==========================================
 Combines scores from all 6 detection layers into a per-transaction
-final risk score using the PRD Section 8.4 weighted formula.
+final risk score using performance-tuned weights.
 
-Weights (from PRD):
-  user_score     * 0.15
-  merchant_score * 0.25
-  network_score  * 0.25
+Weights (tuned based on layer F1 performance):
+  user_score     * 0.10
+  merchant_score * 0.15
+  network_score  * 0.20
   temporal_score * 0.10
   velocity_score * 0.15
-  flow_score     * 0.10
-  + cross_correlation_bonus (+15 if 4+ layers flag same entity)
+  flow_score     * 0.30
+  + cross_correlation_bonus (+10 if 3+ layers flag same entity)
 
 Risk levels (PRD Section 9):
-  0-50  : Normal ✅
-  50-70 : Suspicious ⚠️
-  70-90 : High Risk 🚩
-  90-100: Critical 🧊
+  0-40  : Normal ✅
+  40-60 : Suspicious ⚠️
+  60-80 : High Risk 🚩
+  80-100: Critical 🧊
 """
 
 import numpy as np
@@ -29,16 +29,16 @@ import pandas as pd
 # ============================================================
 
 WEIGHTS = {
-    "user": 0.15,
-    "merchant": 0.25,
-    "network": 0.25,
+    "user": 0.10,
+    "merchant": 0.15,
+    "network": 0.20,
     "temporal": 0.10,
     "velocity": 0.15,
-    "flow": 0.10,
+    "flow": 0.30,
 }
 
-CROSS_CORRELATION_THRESHOLD = 4
-CROSS_CORRELATION_BONUS = 15
+CROSS_CORRELATION_THRESHOLD = 3
+CROSS_CORRELATION_BONUS = 10
 
 
 def combine_scores(df: pd.DataFrame, layer_results: dict) -> pd.DataFrame:
@@ -109,7 +109,7 @@ def combine_scores(df: pd.DataFrame, layer_results: dict) -> pd.DataFrame:
     )
 
     # --- Cross-correlation bonus ---
-    flag_threshold = 50
+    flag_threshold = 40
     layer_cols = ["user_score", "merchant_score", "network_score",
                   "temporal_score", "velocity_score", "flow_score"]
     scored["layers_flagged"] = (scored[layer_cols] >= flag_threshold).sum(axis=1)
@@ -126,7 +126,7 @@ def combine_scores(df: pd.DataFrame, layer_results: dict) -> pd.DataFrame:
     # --- Risk level ---
     scored["risk_level"] = pd.cut(
         scored["final_score"],
-        bins=[-1, 50, 70, 90, 100],
+        bins=[-1, 40, 60, 80, 100],
         labels=["Normal", "Suspicious", "High Risk", "Critical"],
     )
 
@@ -137,7 +137,7 @@ def combine_scores(df: pd.DataFrame, layer_results: dict) -> pd.DataFrame:
 # EVALUATION
 # ============================================================
 
-def evaluate(scored_df: pd.DataFrame, threshold: float = 50.0) -> dict:
+def evaluate(scored_df: pd.DataFrame, threshold: float = 40.0) -> dict:
     """Evaluate combined scoring against ground truth labels."""
     predicted = (scored_df["final_score"] >= threshold).astype(int)
     actual = scored_df["label"].astype(int)

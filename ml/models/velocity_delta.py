@@ -1,13 +1,14 @@
 """
-Pantau ML — Layer 5: Velocity Delta Detection (Z-Score / SPC)
-==============================================================
-Monitors per-merchant transaction velocity using statistical process control.
-Detects abnormal spikes that may indicate sudden gambling activity surges.
+Pantau ML — Layer 5: Velocity Delta Detection (Cross-Merchant Z-Score)
+======================================================================
+Compares each merchant's transaction patterns against the global merchant
+population to detect outliers. Uses cross-merchant z-scores instead of
+per-merchant historical comparison (which requires long tx history).
 
 Features per merchant (from PRD Section 7.6):
-- Z-score of daily velocity vs rolling average
-- Velocity delta percentage
-- Spike detection and magnitude
+- Cross-merchant z-scores for count, amount, unique senders
+- Velocity percentile rankings
+- Spike indicators based on population statistics
 """
 
 import os
@@ -22,89 +23,70 @@ import pandas as pd
 # ============================================================
 
 def engineer_velocity_features(df: pd.DataFrame) -> pd.DataFrame:
-    """Compute per-merchant velocity features using daily transaction counts."""
+    """Compute per-merchant velocity features using cross-merchant z-scores."""
     df = df.copy()
     df["timestamp"] = pd.to_datetime(df["timestamp"])
     df["date"] = df["timestamp"].dt.date
 
-    # Daily transaction count and amount per merchant
+    # Per-merchant aggregate stats
+    merchant_agg = df.groupby("merchant_id").agg(
+        total_tx=("transaction_id", "count"),
+        total_amount=("amount", "sum"),
+        avg_amount=("amount", "mean"),
+        std_amount=("amount", "std"),
+        unique_users=("user_id", "nunique"),
+        unique_days=("date", "nunique"),
+        round_amount_rate=("is_round_amount", "mean"),
+    ).reset_index()
+
+    # Daily stats
     daily = df.groupby(["merchant_id", "date"]).agg(
         daily_count=("transaction_id", "count"),
         daily_amount=("amount", "sum"),
-        daily_unique_senders=("user_id", "nunique"),
+        daily_unique_users=("user_id", "nunique"),
     ).reset_index()
 
-    # Per-merchant statistics
-    merchant_stats = daily.groupby("merchant_id").agg(
+    daily_stats = daily.groupby("merchant_id").agg(
         avg_daily_count=("daily_count", "mean"),
-        std_daily_count=("daily_count", "std"),
         max_daily_count=("daily_count", "max"),
-        min_daily_count=("daily_count", "min"),
+        std_daily_count=("daily_count", "std"),
         avg_daily_amount=("daily_amount", "mean"),
-        std_daily_amount=("daily_amount", "std"),
-        avg_daily_senders=("daily_unique_senders", "mean"),
-        std_daily_senders=("daily_unique_senders", "std"),
-        active_days=("date", "count"),
+        max_daily_amount=("daily_amount", "max"),
     ).reset_index()
 
-    # Last active day stats per merchant
-    last_day_idx = daily.groupby("merchant_id")["date"].idxmax()
-    last_day = daily.loc[last_day_idx, ["merchant_id", "daily_count", "daily_amount",
-                                         "daily_unique_senders"]].rename(columns={
-        "daily_count": "last_day_count",
-        "daily_amount": "last_day_amount",
-        "daily_unique_senders": "last_day_senders",
-    })
-
-    features = merchant_stats.merge(last_day, on="merchant_id", how="left")
-
-    # Fill NaN std (merchants with 1 active day)
-    features["std_daily_count"] = features["std_daily_count"].fillna(0)
-    features["std_daily_amount"] = features["std_daily_amount"].fillna(0)
-    features["std_daily_senders"] = features["std_daily_senders"].fillna(0)
-
-    # --- Z-scores for last day ---
-    features["velocity_zscore_count"] = (
-        (features["last_day_count"] - features["avg_daily_count"])
-        / features["std_daily_count"].replace(0, 1)
-    )
-    features["velocity_zscore_amount"] = (
-        (features["last_day_amount"] - features["avg_daily_amount"])
-        / features["std_daily_amount"].replace(0, 1)
-    )
-    features["velocity_zscore_senders"] = (
-        (features["last_day_senders"] - features["avg_daily_senders"])
-        / features["std_daily_senders"].replace(0, 1)
+    daily_stats["std_daily_count"] = daily_stats["std_daily_count"].fillna(0)
+    daily_stats["burstiness"] = (
+        daily_stats["max_daily_count"] / daily_stats["avg_daily_count"].replace(0, 1)
     )
 
-    # --- Velocity delta % (last day vs average) ---
-    features["velocity_delta_pct"] = (
-        (features["last_day_count"] - features["avg_daily_count"])
-        / features["avg_daily_count"].replace(0, 1) * 100
-    )
+    features = merchant_agg.merge(daily_stats, on="merchant_id", how="left")
+    features["std_amount"] = features["std_amount"].fillna(0)
+    features["tx_per_day"] = features["total_tx"] / features["unique_days"].replace(0, 1)
+    features["users_per_tx"] = features["unique_users"] / features["total_tx"].replace(0, 1)
 
-    # --- Spike detection ---
-    features["spike_detected"] = (
-        features["velocity_zscore_count"].abs() > 2
-    ).astype(int)
+    # --- Cross-merchant z-scores (compare each merchant vs ALL merchants) ---
+    zscore_cols = ["total_tx", "total_amount", "unique_users", "avg_amount",
+                   "tx_per_day", "round_amount_rate", "burstiness"]
 
-    features["spike_magnitude"] = (
-        features["last_day_count"] / features["avg_daily_count"].replace(0, 1)
-    )
+    for col in zscore_cols:
+        col_mean = features[col].mean()
+        col_std = features[col].std()
+        if col_std == 0:
+            col_std = 1
+        features[f"z_{col}"] = (features[col] - col_mean) / col_std
 
-    # --- Burstiness: max / avg ratio ---
-    features["burstiness"] = (
-        features["max_daily_count"] / features["avg_daily_count"].replace(0, 1)
-    )
+    # --- Composite risk score ---
+    z_cols = [f"z_{c}" for c in zscore_cols]
+    z_abs = features[z_cols].abs()
 
-    # --- Risk score: composite of z-scores and spike indicators ---
-    z_abs = features[["velocity_zscore_count", "velocity_zscore_amount",
-                       "velocity_zscore_senders"]].abs()
+    # Higher weight on user count and burstiness (judol signals)
+    weights = np.array([1.0, 1.0, 2.0, 1.0, 1.5, 2.0, 1.5])
+    weighted_z = (z_abs.values * weights).mean(axis=1)
 
     features["risk_score"] = np.clip(
-        z_abs.mean(axis=1) * 15 +
-        features["spike_detected"] * 20 +
-        features["burstiness"].clip(0, 5) * 5,
+        weighted_z * 20 +
+        (features["burstiness"] > 3).astype(int) * 10 +
+        (features["round_amount_rate"] > 0.5).astype(int) * 10,
         0, 100,
     ).round(1)
 
@@ -112,12 +94,11 @@ def engineer_velocity_features(df: pd.DataFrame) -> pd.DataFrame:
 
 
 FEATURE_COLUMNS = [
-    "avg_daily_count", "std_daily_count", "max_daily_count",
-    "avg_daily_amount", "std_daily_amount",
-    "avg_daily_senders", "std_daily_senders",
-    "active_days",
-    "velocity_zscore_count", "velocity_zscore_amount", "velocity_zscore_senders",
-    "velocity_delta_pct", "spike_detected", "spike_magnitude", "burstiness",
+    "total_tx", "total_amount", "avg_amount", "std_amount",
+    "unique_users", "unique_days", "round_amount_rate",
+    "avg_daily_count", "max_daily_count", "burstiness", "tx_per_day",
+    "z_total_tx", "z_total_amount", "z_unique_users", "z_avg_amount",
+    "z_tx_per_day", "z_round_amount_rate", "z_burstiness",
 ]
 
 
@@ -125,9 +106,9 @@ FEATURE_COLUMNS = [
 # TRAIN (statistical — no ML model, just evaluation)
 # ============================================================
 
-def train(df: pd.DataFrame, threshold: float = 45.0) -> dict:
+def train(df: pd.DataFrame, threshold: float = 40.0) -> dict:
     """Compute velocity features and evaluate against ground truth."""
-    print("  [Velocity] Computing velocity features...")
+    print("  [Velocity] Computing cross-merchant velocity features...")
     feature_df = engineer_velocity_features(df)
 
     merchant_labels = df.groupby("merchant_id")["label"].mean()
@@ -167,7 +148,7 @@ def train(df: pd.DataFrame, threshold: float = 45.0) -> dict:
 # PREDICTION
 # ============================================================
 
-def predict(df: pd.DataFrame, threshold: float = 45.0) -> pd.DataFrame:
+def predict(df: pd.DataFrame, threshold: float = 40.0) -> pd.DataFrame:
     """Score new transactions with velocity analysis (no model needed)."""
     feature_df = engineer_velocity_features(df)
     feature_df["predicted_anomaly"] = (feature_df["risk_score"] >= threshold).astype(int)
@@ -181,7 +162,7 @@ def predict(df: pd.DataFrame, threshold: float = 45.0) -> pd.DataFrame:
 MODEL_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "models")
 
 
-def save(threshold: float = 45.0, path: str = None):
+def save(threshold: float = 40.0, path: str = None):
     os.makedirs(MODEL_DIR, exist_ok=True)
     path = path or os.path.join(MODEL_DIR, "velocity_delta.pkl")
     with open(path, "wb") as f:

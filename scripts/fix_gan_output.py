@@ -26,13 +26,13 @@ import pandas as pd
 TARGET_NORMAL_USERS = 70_000
 TARGET_JUDOL_USERS = 11_000
 
-# Merchant cardinality targets (from parametric: ~162K merchants, avg 3 tx/merchant)
-TARGET_NORMAL_MERCHANTS = 140_000
-TARGET_JUDOL_MERCHANTS = 22_000
+# Merchant cardinality targets (5000 normal + 500 judol = 5500 total)
+TARGET_NORMAL_MERCHANTS = 5_000
+TARGET_JUDOL_MERCHANTS = 500
 
 # Max transactions per entity (cap to prevent super-entities)
 MAX_TX_PER_USER = 30
-MAX_TX_PER_MERCHANT = 15
+MAX_TX_PER_MERCHANT = 500
 
 # Seed for reproducibility
 SEED = 42
