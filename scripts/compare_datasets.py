@@ -331,6 +331,26 @@ def quality_verdict(df_p, df_g):
 # MAIN
 # ============================================================
 
+class TeeOutput:
+    """Write to both stdout and a file simultaneously."""
+    def __init__(self, filepath):
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        self.file = open(filepath, "w", encoding="utf-8")
+        self.stdout = sys.stdout
+
+    def write(self, text):
+        self.stdout.write(text)
+        self.file.write(text)
+
+    def flush(self):
+        self.stdout.flush()
+        self.file.flush()
+
+    def close(self):
+        self.file.close()
+        sys.stdout = self.stdout
+
+
 def main():
     parser = argparse.ArgumentParser(description="Compare Parametric vs GAN datasets")
     parser.add_argument("--parametric", "-p", type=str,
@@ -339,6 +359,9 @@ def main():
     parser.add_argument("--gan", "-g", type=str,
                         default="data/generated/gan/pantau_gan_ctgan.csv",
                         help="Path to GAN dataset")
+    parser.add_argument("--output", "-o", type=str,
+                        default="logs/comparison_report.txt",
+                        help="Path to save report")
     args = parser.parse_args()
 
     if not os.path.exists(args.parametric):
@@ -347,6 +370,10 @@ def main():
     if not os.path.exists(args.gan):
         print(f"ERROR: GAN dataset not found: {args.gan}")
         sys.exit(1)
+
+    # Tee output to both terminal and file
+    tee = TeeOutput(args.output)
+    sys.stdout = tee
 
     print("=" * 70)
     print("  PANTAU — Dataset Quality Comparison")
@@ -369,7 +396,10 @@ def main():
     compare_judol_patterns(df_p, df_g)
     quality_verdict(df_p, df_g)
 
-    print("\n  Done! ✓")
+    print(f"\n  Report saved to: {args.output}")
+    print("  Done! ✓")
+
+    tee.close()
 
 
 if __name__ == "__main__":
