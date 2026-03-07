@@ -92,7 +92,7 @@ def preprocess(df: pd.DataFrame) -> pd.DataFrame:
     """Prepare dataframe for GAN training — drop ID columns, fix types."""
     df = df.copy()
 
-    # Drop ID columns — no behavioral signal, regenerated post-hoc
+    # Drop ID columns — regenerated post-hoc
     df = df.drop(columns=EXCLUDE_COLUMNS, errors="ignore")
 
     # Ensure correct types
@@ -102,7 +102,7 @@ def preprocess(df: pd.DataFrame) -> pd.DataFrame:
     df["tx_day_of_week"] = df["tx_day_of_week"].astype(int)
     df["is_round_amount"] = df["is_round_amount"].astype(bool)
 
-    # City/province are manageable cardinality (514 / 38)
+    # City/province as categorical
     for col in ["user_city", "user_province", "merchant_city", "merchant_province"]:
         df[col] = df[col].astype(str)
 

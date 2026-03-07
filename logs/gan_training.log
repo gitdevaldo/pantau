@@ -10,27 +10,28 @@ Pantau — Stage 2: GAN Augmentation Pipeline
 
 [1/5] Loading parametric base dataset...
   Loaded 500,000 rows, 15 columns
+  Sampled down to 100,000 rows for faster training
 
 ============================================================
 BASE (PARAMETRIC) SUMMARY
 ============================================================
-Total rows:          500,000
-Normal (label=0):    425,000 (85.0%)
-Judol  (label=1):    75,000 (15.0%)
-Unique users:        81,556
-Unique merchants:    162,966
-Amount range:        Rp1,681 - Rp2,302,927
+Total rows:          100,000
+Normal (label=0):    85,123 (85.1%)
+Judol  (label=1):    14,877 (14.9%)
+Unique users:        50,044
+Unique merchants:    36,766
+Amount range:        Rp2,151 - Rp2,154,926
 
 --- Transaction Type Distribution ---
-  QRIS: 342,501 (68.5%) — 45,156 judol
-  EWALLET_LINKAJA: 39,489 (7.9%) — 7,591 judol
-  EWALLET_GOPAY: 39,429 (7.9%) — 7,411 judol
-  EWALLET_OVO: 39,354 (7.9%) — 7,483 judol
-  EWALLET_DANA: 39,227 (7.8%) — 7,359 judol
+  QRIS: 68,684 (68.7%) — 9,027 judol
+  EWALLET_OVO: 7,890 (7.9%) — 1,512 judol
+  EWALLET_LINKAJA: 7,872 (7.9%) — 1,519 judol
+  EWALLET_GOPAY: 7,816 (7.8%) — 1,421 judol
+  EWALLET_DANA: 7,738 (7.7%) — 1,398 judol
 
 --- Temporal Distribution ---
-  Date range:        2025-12-01 00:00:12 → 2026-03-01 23:55:53
-  Weekday/Weekend:   361,568 / 138,432
+  Date range:        2025-12-01 00:04:46 → 2026-03-01 23:54:29
+  Weekday/Weekend:   72,238 / 27,762
 
 [2/5] Preprocessing data...
   Training columns: ['timestamp', 'amount', 'user_city', 'user_province', 'merchant_city', 'merchant_province', 'transaction_type', 'is_round_amount', 'tx_hour', 'tx_day_of_week', 'label']
@@ -56,44 +57,3 @@ tx_day_of_week         7
 label                  2
 
 We recommend preprocessing discrete columns that can have many values, using 'update_transformers'. Or you may drop columns that are not necessary to model. (Exit this script using ctrl-C)
-Traceback (most recent call last):
-  File "/root/pidi/scripts/train_gan.py", line 345, in <module>
-    main()
-  File "/root/pidi/scripts/train_gan.py", line 287, in main
-    synthesizer.fit(df_train)
-  File "/usr/local/lib/python3.12/dist-packages/sdv/single_table/base.py", line 699, in fit
-    self.fit_processed_data(processed_data)
-  File "/usr/local/lib/python3.12/dist-packages/sdv/single_table/base.py", line 668, in fit_processed_data
-    self._fit(processed_data)
-  File "/usr/local/lib/python3.12/dist-packages/sdv/single_table/ctgan.py", line 308, in _fit
-    self._model.fit(processed_data, discrete_columns=discrete_columns)
-  File "/usr/local/lib/python3.12/dist-packages/ctgan/synthesizers/base.py", line 52, in wrapper
-    return function(self, *args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/usr/local/lib/python3.12/dist-packages/ctgan/synthesizers/ctgan.py", line 345, in fit
-    train_data = self._transformer.transform(train_data)
-                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/usr/local/lib/python3.12/dist-packages/ctgan/data_transformer.py", line 187, in transform
-    column_data_list = self._parallel_transform(raw_data, self._column_transform_info_list)
-                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/usr/local/lib/python3.12/dist-packages/ctgan/data_transformer.py", line 172, in _parallel_transform
-    return Parallel(n_jobs=-1)(processes)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/usr/local/lib/python3.12/dist-packages/joblib/parallel.py", line 2072, in __call__
-    return output if self.return_generator else list(output)
-                                                ^^^^^^^^^^^^
-  File "/usr/local/lib/python3.12/dist-packages/joblib/parallel.py", line 1682, in _get_outputs
-    yield from self._retrieve()
-  File "/usr/local/lib/python3.12/dist-packages/joblib/parallel.py", line 1784, in _retrieve
-    self._raise_error_fast()
-  File "/usr/local/lib/python3.12/dist-packages/joblib/parallel.py", line 1859, in _raise_error_fast
-    error_job.get_result(self.timeout)
-  File "/usr/local/lib/python3.12/dist-packages/joblib/parallel.py", line 758, in get_result
-    return self._return_or_raise()
-           ^^^^^^^^^^^^^^^^^^^^^^^
-  File "/usr/local/lib/python3.12/dist-packages/joblib/parallel.py", line 773, in _return_or_raise
-    raise self._result
-joblib.externals.loky.process_executor.TerminatedWorkerError: A worker process managed by the executor was unexpectedly terminated. This could be caused by a segmentation fault while calling the function or by an excessive memory usage causing the Operating System to kill the worker.
-
-The exit codes of the workers are {SIGKILL(-9)}
-Detailed tracebacks of the workers should have been printed to stderr in the executor process if faulthandler was not disabled.
