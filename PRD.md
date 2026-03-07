@@ -662,14 +662,11 @@ Base dataset publik memiliki kolom yang **berbeda** dari skema yang dibutuhkan s
 
 ---
 
-### 14.3 Correct Mental Model
+### 14.3 Two-Stage Data Pipeline
 
 ```
-WRONG:
-Base Dataset → GAN → Your Dataset
-(columns transform magically) ❌
-
-CORRECT:
+Stage 1: Parametric Generator (✅ DONE)
+──────────────────────────────────────────
 Base Dataset → Extract Statistical Parameters
         +
 PPATK Statistics → Calibration Parameters
@@ -677,10 +674,44 @@ PPATK Statistics → Calibration Parameters
 Custom Parametric Generator
 (outputs YOUR exact columns)
         ↓
-500,000 rows with your schema ✅
+500,000 rows base dataset ✅
+
+Stage 2: GAN Augmentation
+──────────────────────────────────────────
+500K base dataset (Stage 1 output)
+        ↓
+CTGAN / TVAE Training
+(learns joint distributions, correlations,
+ edge cases the parametric generator misses)
+        ↓
+GAN-generated synthetic data
+        +
+Original 500K base
+        ↓
+Final training dataset ✅
 ```
 
-> Base datasets bukan sumber kolom — tapi sumber **statistical parameters** untuk mengkalibrasi generator.
+> **Stage 1** memastikan skema dan pola domain benar. **Stage 2** memperkaya variasi statistik menggunakan GAN sehingga model ML lebih robust terhadap pola yang tidak terduga.
+
+#### Mengapa Dua Tahap?
+
+| Aspek | Parametric Generator Saja | + GAN Augmentation |
+|---|---|---|
+| **Distribusi** | Mengikuti distribusi yang di-hardcode | Belajar joint distribution dari data |
+| **Korelasi antar kolom** | Harus di-program manual | GAN menangkap korelasi implisit |
+| **Edge cases** | Terbatas pada pola yang kita definisikan | GAN menghasilkan variasi baru yang realistis |
+| **Overfitting risk** | Model ML mudah menghafal pola generator | Data lebih variatif → generalisasi lebih baik |
+| **Realism** | Rule-based, predictable | Lebih mendekati distribusi transaksi nyata |
+
+#### GAN Technology Choice
+
+| Library | Model | Kelebihan |
+|---|---|---|
+| **SDV (Synthetic Data Vault)** | CTGAN | State-of-the-art untuk tabular data, handles mixed types |
+| **SDV** | TVAE | Lebih cepat training, stabil untuk dataset besar |
+| **SDV** | CopulaGAN | Menangkap korelasi antar kolom lebih baik |
+
+> Rekomendasi: Gunakan **CTGAN** sebagai primary, **TVAE** sebagai fallback jika training terlalu lambat.
 
 ---
 
@@ -1062,15 +1093,19 @@ if __name__ == "__main__":
 Step 1: Spin up DO 4vCPU/8GB droplet
         ↓
 Step 2: Run generate_full_dataset() script
-        (~5 minutes, outputs 500k row CSV)
+        (~5 minutes, outputs 500k row CSV — base dataset)
         ↓
-Step 3: Train Isolation Forest (< 5 mins)
+Step 3: Train CTGAN/TVAE on base dataset (< 30 mins)
+        Generate augmented synthetic data
+        Combine base + GAN output → final training dataset
+        ↓
+Step 4: Train Isolation Forest (< 5 mins)
         Train Graph Analysis (< 15 mins)
         Train Z-Score baselines (< 1 min)
         ↓
-Step 4: Models saved as .pkl files
+Step 5: Models saved as .pkl files
         ↓
-Step 5: Deploy API + Dashboard
+Step 6: Deploy API + Dashboard
         ↓
 Total training cost: $0 extra
 (same droplet used for everything)
@@ -1089,12 +1124,13 @@ Using synthetic data is **standard practice** in financial fraud research:
 - Real data partnership as production next step ✅
 
 #### Pitch Statement:
-> *"Our synthetic dataset was generated using a parametric generator calibrated against three public financial datasets (IBM AML, PaySim, Sports Betting) and official PPATK statistics — consistent with standard practice in financial fraud research as cited in Gadimov & Birihanu (2025)."*
+> *"Our training dataset was built using a two-stage pipeline: (1) a parametric generator calibrated against three public financial datasets (IBM AML, PaySim, Sports Betting) and official PPATK statistics, then (2) augmented using CTGAN to capture realistic joint distributions and edge cases — consistent with standard practice in financial fraud research as cited in Gadimov & Birihanu (2025)."*
 
 ---
 
 ### Must Build ✅
-- Synthetic transaction data generator (normal vs judol patterns)
+- Synthetic transaction data generator (normal vs judol patterns) ✅
+- GAN augmentation pipeline (CTGAN/TVAE via SDV)
 - Isolation Forest models (user + merchant layer)
 - Z-Score velocity detection
 - NetworkX graph analysis

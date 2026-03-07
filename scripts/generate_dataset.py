@@ -38,13 +38,13 @@ def load_wilayah() -> list:
     Links via ID prefix: kota "12.71" → province "12".
     """
     provinces = {}
-    with open(os.path.join(DATA_DIR, "provinsi.csv"), encoding="utf-8") as f:
+    with open(os.path.join(DATA_DIR, "geolocation", "provinsi.csv"), encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             provinces[row["id"].strip('"')] = row["name"].strip('"')
 
     cities = []
-    with open(os.path.join(DATA_DIR, "kabupaten_kota.csv"), encoding="utf-8") as f:
+    with open(os.path.join(DATA_DIR, "geolocation", "kabupaten_kota.csv"), encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             kota_id = row["id"].strip('"')
