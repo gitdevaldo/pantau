@@ -1,16 +1,6 @@
 # Base datasets (downloaded from Kaggle - too large for git)
 data/base/
 
-# Generated datasets (too large for GitHub >50MB)
-data/generated/
-data/scored/
-
-# Trained models (binary files, regenerate with ml.train)
-models/
-
-# Logs — keep these, they're small text/JSON files
-!logs/
-
 # Python
 __pycache__/
 *.pyc
