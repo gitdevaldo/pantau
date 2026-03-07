@@ -2,9 +2,8 @@
 Pantau — GAN Output Post-Processing Fix
 ==========================================
 Fixes known GAN output issues:
-1. Label ratio drift (23% → 15% judol) — resample to restore 85/15
-2. Unique ID explosion (500K unique merchants) — assign realistic cardinality
-3. Preserves all GAN-learned behavioral columns (amount, temporal, geo, etc.)
+1. Unique ID explosion (500K unique merchants) — assign realistic cardinality
+2. Preserves GAN-learned label ratio and all behavioral columns
 
 Usage:
     python3 scripts/fix_gan_output.py [--input PATH] [--output PATH]
@@ -22,11 +21,6 @@ import pandas as pd
 # ============================================================
 # CONFIGURATION — matches parametric dataset characteristics
 # ============================================================
-
-TARGET_ROWS = 500_000
-TARGET_JUDOL_RATE = 0.15  # 15% judol, 85% normal
-TARGET_NORMAL = int(TARGET_ROWS * (1 - TARGET_JUDOL_RATE))  # 425,000
-TARGET_JUDOL = TARGET_ROWS - TARGET_NORMAL                   # 75,000
 
 # User cardinality targets (from parametric: ~81K users, avg 6 tx/user)
 TARGET_NORMAL_USERS = 70_000
@@ -104,37 +98,6 @@ def generate_merchant_ids(n: int, tx_types: pd.Series, rng: random.Random) -> li
                 break
 
     return id_list[:n]
-
-
-# ============================================================
-# LABEL RATIO FIX
-# ============================================================
-
-def fix_label_ratio(df: pd.DataFrame) -> pd.DataFrame:
-    """Resample to achieve target 85/15 label ratio."""
-    df_normal = df[df["label"] == 0]
-    df_judol = df[df["label"] == 1]
-
-    print(f"  Before: {len(df_normal):,} normal, {len(df_judol):,} judol")
-
-    # Downsample to targets
-    if len(df_normal) > TARGET_NORMAL:
-        df_normal = df_normal.sample(n=TARGET_NORMAL, random_state=SEED)
-    elif len(df_normal) < TARGET_NORMAL:
-        # Upsample if needed
-        extra = TARGET_NORMAL - len(df_normal)
-        df_normal = pd.concat([df_normal, df_normal.sample(n=extra, replace=True, random_state=SEED)])
-
-    if len(df_judol) > TARGET_JUDOL:
-        df_judol = df_judol.sample(n=TARGET_JUDOL, random_state=SEED)
-    elif len(df_judol) < TARGET_JUDOL:
-        extra = TARGET_JUDOL - len(df_judol)
-        df_judol = pd.concat([df_judol, df_judol.sample(n=extra, replace=True, random_state=SEED)])
-
-    df_fixed = pd.concat([df_normal, df_judol]).sample(frac=1, random_state=SEED).reset_index(drop=True)
-    print(f"  After:  {(df_fixed['label']==0).sum():,} normal, {(df_fixed['label']==1).sum():,} judol")
-
-    return df_fixed
 
 
 # ============================================================
@@ -279,18 +242,17 @@ def main():
     print("=" * 60)
 
     # Load
-    print(f"\n[1/4] Loading GAN output: {args.input}")
+    print(f"\n[1/3] Loading GAN output: {args.input}")
     df = pd.read_csv(args.input)
     df["label"] = df["label"].astype(int)
     df["is_round_amount"] = df["is_round_amount"].astype(bool)
-    print(f"  Loaded {len(df):,} rows ({(df['label']==1).mean()*100:.1f}% judol)")
-
-    # Fix label ratio
-    print(f"\n[2/4] Fixing label ratio → {TARGET_JUDOL_RATE*100:.0f}% judol...")
-    df = fix_label_ratio(df)
+    n_judol = (df['label'] == 1).sum()
+    n_normal = (df['label'] == 0).sum()
+    print(f"  Loaded {len(df):,} rows — {n_normal:,} normal ({n_normal/len(df)*100:.1f}%), {n_judol:,} judol ({n_judol/len(df)*100:.1f}%)")
+    print(f"  Keeping GAN's natural label ratio (no resampling)")
 
     # Reassign IDs
-    print(f"\n[3/4] Assigning realistic user/merchant IDs...")
+    print(f"\n[2/3] Assigning realistic user/merchant IDs...")
     df = assign_realistic_ids(df)
 
     # Reorder columns
@@ -303,7 +265,7 @@ def main():
     df = df[column_order]
 
     # Save
-    print(f"\n[4/4] Saving fixed dataset...")
+    print(f"\n[3/3] Saving fixed dataset...")
     os.makedirs(os.path.dirname(args.output), exist_ok=True)
     df.to_csv(args.output, index=False)
     size_mb = os.path.getsize(args.output) / (1024 * 1024)
