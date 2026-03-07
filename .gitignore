@@ -1,0 +1,31 @@
+# Base datasets (downloaded from Kaggle - too large for git)
+data/base/
+
+# Generated dataset (large CSV)
+data/generated/*.csv
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+venv/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
