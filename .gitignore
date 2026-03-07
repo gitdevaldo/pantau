@@ -1,8 +1,7 @@
 # Base datasets (downloaded from Kaggle - too large for git)
 data/base/
 
-# Generated dataset (large CSV)
-data/generated/*.csv
+# Generated dataset (keep in repo for reproducibility)
 
 # Python
 __pycache__/

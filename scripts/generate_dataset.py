@@ -1,13 +1,13 @@
 """
-JudiWatch Synthetic Dataset Generator
-=====================================
+Pantau Synthetic Dataset Generator
+===================================
 Generates 500,000 transactions (85% normal, 15% judol) calibrated from:
 - IBM AML dataset (fraud rate, amount distribution, layering patterns)
 - PaySim dataset (hourly distribution, repeat rate, geo radius)
 - Bustabit dataset (gambling session patterns, deposit cycles)
 - PPATK statistics (judol hours, round amounts, geo spread)
 
-Output: data/generated/judiwatch_dataset.csv
+Output: data/generated/pantau_dataset.csv
 """
 
 import pandas as pd
@@ -489,7 +489,7 @@ def generate_judol_user_transactions(
 
 def generate_full_dataset():
     print("=" * 60)
-    print("JudiWatch Synthetic Dataset Generator")
+    print("Pantau Synthetic Dataset Generator")
     print("=" * 60)
 
     # Time range: 90 days
@@ -546,7 +546,7 @@ def generate_full_dataset():
     # Save
     output_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "generated")
     os.makedirs(output_dir, exist_ok=True)
-    output_path = os.path.join(output_dir, "judiwatch_dataset.csv")
+    output_path = os.path.join(output_dir, "pantau_dataset.csv")
     df.to_csv(output_path, index=False)
     file_size_mb = os.path.getsize(output_path) / (1024 * 1024)
     print(f"\nSaved: {output_path} ({file_size_mb:.1f} MB)")

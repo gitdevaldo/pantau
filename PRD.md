@@ -49,7 +49,7 @@ Operator judol menggunakan QRIS sebagai metode deposit utama karena:
 ## 4. Solution Overview
 
 ### Product Name
-**JudiWatch** — AI-Powered Judol Transaction Detection Platform
+**Pantau** — AI-Powered Judol Transaction Detection Platform
 
 ### What We Build
 Platform dua lapis yang bekerja secara bersamaan:
@@ -1038,8 +1038,8 @@ def generate_full_dataset():
     print(f"Label distribution:\n{full_dataset['label'].value_counts()}")
 
     # Save
-    full_dataset.to_csv('judiwatch_training_data.csv', index=False)
-    print("Saved: judiwatch_training_data.csv ✅")
+    full_dataset.to_csv('pantau_training_data.csv', index=False)
+    print("Saved: pantau_training_data.csv ✅")
 
     return full_dataset
 
