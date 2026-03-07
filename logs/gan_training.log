@@ -57,3 +57,7 @@ tx_day_of_week         7
 label                  2
 
 We recommend preprocessing discrete columns that can have many values, using 'update_transformers'. Or you may drop columns that are not necessary to model. (Exit this script using ctrl-C)
+/usr/local/lib/python3.12/dist-packages/joblib/externals/loky/backend/resource_tracker.py:359: UserWarning: resource_tracker: There appear to be 14 leaked semlock objects to clean up at shutdown
+  warnings.warn(
+/usr/local/lib/python3.12/dist-packages/joblib/externals/loky/backend/resource_tracker.py:359: UserWarning: resource_tracker: There appear to be 1 leaked folder objects to clean up at shutdown
+  warnings.warn(

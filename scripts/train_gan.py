@@ -16,6 +16,7 @@ import os
 import time
 
 import pandas as pd
+from rdt.transformers import LabelEncoder
 from sdv.metadata import Metadata
 from sdv.single_table import CTGANSynthesizer, TVAESynthesizer
 
@@ -280,6 +281,15 @@ def main():
         )
 
     print(f"  Initialized {args.model.upper()} synthesizer")
+
+    # Use LabelEncoder for high-cardinality city columns (514 unique each)
+    # This avoids one-hot explosion: 1 column instead of 514 per city field
+    synthesizer.auto_assign_transformers(df_train)
+    synthesizer.update_transformers({
+        "user_city": LabelEncoder(add_noise=True),
+        "merchant_city": LabelEncoder(add_noise=True),
+    })
+    print("  Applied LabelEncoder for city columns (avoids one-hot OOM)")
 
     # ---- Train ----
     print(f"\n[4/5] Training {args.model.upper()} (this may take a while on CPU)...")
