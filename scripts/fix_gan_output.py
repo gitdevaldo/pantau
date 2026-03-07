@@ -36,6 +36,10 @@ TARGET_JUDOL_USERS = 11_000
 TARGET_NORMAL_MERCHANTS = 140_000
 TARGET_JUDOL_MERCHANTS = 22_000
 
+# Max transactions per entity (cap to prevent super-entities)
+MAX_TX_PER_USER = 30
+MAX_TX_PER_MERCHANT = 15
+
 # Seed for reproducibility
 SEED = 42
 
@@ -159,16 +163,35 @@ def assign_realistic_ids(df: pd.DataFrame) -> pd.DataFrame:
     normal_user_pool = generate_user_ids(TARGET_NORMAL_USERS, rng)
     judol_user_pool = generate_user_ids(TARGET_JUDOL_USERS, rng)
 
-    # Assign with power-law distribution (some users have many txs)
-    # Zipf distribution: index^(-alpha), alpha=1.2 gives realistic long tail
-    def zipf_assign(pool, n_rows, alpha=1.2):
-        weights = np.arange(1, len(pool) + 1, dtype=float) ** (-alpha)
-        weights /= weights.sum()
-        indices = np_rng.choice(len(pool), size=n_rows, p=weights)
-        return [pool[i] for i in indices]
+    # Assign with capped uniform-random distribution
+    # Each entity gets at most MAX_TX txs, ensuring realistic spread
+    def capped_assign(pool, n_rows, max_tx):
+        """Assign IDs from pool ensuring no entity exceeds max_tx transactions."""
+        assignments = []
+        pool_size = len(pool)
+        counts = {}
 
-    df_normal["user_id"] = zipf_assign(normal_user_pool, len(df_normal), alpha=1.1)
-    df_judol["user_id"] = zipf_assign(judol_user_pool, len(df_judol), alpha=0.9)
+        for _ in range(n_rows):
+            # Pick random entity, retry if at cap
+            for _attempt in range(50):
+                idx = np_rng.randint(0, pool_size)
+                entity = pool[idx]
+                if counts.get(entity, 0) < max_tx:
+                    counts[entity] = counts.get(entity, 0) + 1
+                    assignments.append(entity)
+                    break
+            else:
+                # Fallback: find any entity under cap
+                for eid in pool:
+                    if counts.get(eid, 0) < max_tx:
+                        counts[eid] = counts.get(eid, 0) + 1
+                        assignments.append(eid)
+                        break
+
+        return assignments
+
+    df_normal["user_id"] = capped_assign(normal_user_pool, len(df_normal), MAX_TX_PER_USER)
+    df_judol["user_id"] = capped_assign(judol_user_pool, len(df_judol), MAX_TX_PER_USER)
 
     # --- Generate merchant ID pools ---
     print("  Generating merchant ID pools...")
@@ -179,9 +202,9 @@ def assign_realistic_ids(df: pd.DataFrame) -> pd.DataFrame:
         TARGET_JUDOL_MERCHANTS, df_judol["transaction_type"], rng
     )
 
-    # Merchants: judol merchants have more txs (fewer merchants, more concentrated)
-    df_normal["merchant_id"] = zipf_assign(normal_merchant_pool, len(df_normal), alpha=1.3)
-    df_judol["merchant_id"] = zipf_assign(judol_merchant_pool, len(df_judol), alpha=0.8)
+    # Merchants: similar capped distribution
+    df_normal["merchant_id"] = capped_assign(normal_merchant_pool, len(df_normal), MAX_TX_PER_MERCHANT)
+    df_judol["merchant_id"] = capped_assign(judol_merchant_pool, len(df_judol), MAX_TX_PER_MERCHANT)
 
     # --- Fix merchant_id format to match transaction_type ---
     # Ensure e-wallet txs have PROVIDER-phone format, QRIS has NMID format
