@@ -252,8 +252,29 @@ def main():
     print(f"  Keeping GAN's natural label ratio (no resampling)")
 
     # Reassign IDs
-    print(f"\n[2/3] Assigning realistic user/merchant IDs...")
+    print(f"\n[2/4] Assigning realistic user/merchant IDs...")
     df = assign_realistic_ids(df)
+
+    # Recompute is_round_amount with tolerance
+    print(f"\n[3/4] Recomputing is_round_amount (2% tolerance)...")
+    round_targets = [5_000, 10_000, 15_000, 20_000, 25_000, 30_000, 40_000,
+                     50_000, 75_000, 100_000, 150_000, 200_000, 250_000,
+                     300_000, 400_000, 500_000]
+    tolerance = 0.02  # 2%
+
+    def is_near_round(amount):
+        for target in round_targets:
+            if abs(amount - target) / target <= tolerance:
+                return True
+        return False
+
+    df["is_round_amount"] = df["amount"].apply(is_near_round)
+    n_round = df["is_round_amount"].sum()
+    n_round_judol = df.loc[df["label"] == 1, "is_round_amount"].sum()
+    n_judol_total = (df["label"] == 1).sum()
+    print(f"  Overall round amount rate: {n_round/len(df)*100:.1f}%")
+    print(f"  Judol round amount rate:   {n_round_judol/n_judol_total*100:.1f}%")
+    print(f"  Normal round amount rate:  {(n_round - n_round_judol)/(len(df) - n_judol_total)*100:.1f}%")
 
     # Reorder columns
     column_order = [
@@ -265,7 +286,7 @@ def main():
     df = df[column_order]
 
     # Save
-    print(f"\n[3/3] Saving fixed dataset...")
+    print(f"\n[4/4] Saving fixed dataset...")
     os.makedirs(os.path.dirname(args.output), exist_ok=True)
     df.to_csv(args.output, index=False)
     size_mb = os.path.getsize(args.output) / (1024 * 1024)
