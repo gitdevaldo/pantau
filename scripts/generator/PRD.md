@@ -387,7 +387,7 @@ life + judol activity. The judol signal hides within the noise of normal behavio
 | Judol round amount rate (merchant-side) | 91% | **78-85%** |
 | Judol round amount rate (user-side) | 88% | **75-82%** |
 | Judol near-round rate | 0% | **10-15%** (amount = round ± random 500-2000) |
-| Normal amount sources | Single lognormal | **Profile-based**: fuel={50K,100K,200K}, pulsa={10K,25K,50K,100K}, parking={5K,10K,15K}, food=lognormal(10.5, 0.6), retail=lognormal(11.0, 0.8). **Amount tail rounding**: round to nearest 100 (never random last digits like 688 or 462). Tail distribution weighted: ~50% end in 000, ~25% end in 500, ~25% other hundreds (100-400, 600-900). Mirrors real merchant pricing behavior. |
+| Normal amount sources | Single lognormal | **Profile-based**: fuel={50K,100K,200K}, pulsa={10K,25K,50K,100K}, parking={5K,10K,15K}, food=lognormal(10.5, 0.6), retail=lognormal(11.0, 0.8). **Amount tail rounding**: most amounts round to nearest 100. Tail distribution weighted: ~50% end in 000, ~25% end in 500, ~15% other hundreds (100-400, 600-900), ~10% truly random tails (e.g., 688, 462) — these exist but are uncommon. |
 
 #### Timing Distribution Changes
 
