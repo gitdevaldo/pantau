@@ -270,6 +270,7 @@ def main():
             metadata,
             epochs=args.epochs,
             batch_size=args.batch_size,
+            cuda=True,
             verbose=True,
         )
     else:
@@ -277,6 +278,7 @@ def main():
             metadata,
             epochs=args.epochs,
             batch_size=args.batch_size,
+            cuda=True,
         )
 
     print(f"  Initialized {args.model.upper()} synthesizer")
