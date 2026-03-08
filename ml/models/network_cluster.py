@@ -215,7 +215,6 @@ def train(
         contamination=contamination,
         random_state=random_state,
         n_jobs=-1,
-        n_jobs=-1,
     )
     model.fit(X_scaled)
 
