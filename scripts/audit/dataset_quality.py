@@ -133,18 +133,18 @@ def test_baselines(df, user_agg, merch_agg):
     scaler = StandardScaler()
     X_tr_s, X_te_s = scaler.fit_transform(X_tr), scaler.transform(X_te)
 
-    lr = LogisticRegression(max_iter=1000, random_state=SEED)
+    lr = LogisticRegression(max_iter=1000, random_state=SEED, class_weight="balanced")
     lr.fit(X_tr_s, y_tr)
     lr_pred = lr.predict(X_te_s)
     lr_f1 = f1_score(y_te, lr_pred)
     lr_auc = roc_auc_score(y_te, lr.predict_proba(X_te_s)[:, 1])
 
-    stump = DecisionTreeClassifier(max_depth=1, random_state=SEED)
+    stump = DecisionTreeClassifier(max_depth=1, random_state=SEED, class_weight="balanced")
     stump.fit(X_tr, y_tr)
     st_f1 = f1_score(y_te, stump.predict(X_te))
     st_feat = FEATURES[stump.tree_.feature[0]]
 
-    dt3 = DecisionTreeClassifier(max_depth=3, random_state=SEED)
+    dt3 = DecisionTreeClassifier(max_depth=3, random_state=SEED, class_weight="balanced")
     dt3.fit(X_tr, y_tr)
     dt3_f1 = f1_score(y_te, dt3.predict(X_te))
 
@@ -162,11 +162,11 @@ def test_baselines(df, user_agg, merch_agg):
         labs = agg["label"].values
         Xa, Xb, ya, yb = train_test_split(feats, labs, test_size=0.2, random_state=SEED, stratify=labs)
 
-        lr_a = LogisticRegression(max_iter=1000, random_state=SEED)
+        lr_a = LogisticRegression(max_iter=1000, random_state=SEED, class_weight="balanced")
         lr_a.fit(StandardScaler().fit_transform(Xa), ya)
         la_f1 = f1_score(yb, lr_a.predict(StandardScaler().fit_transform(Xb)))
 
-        st_a = DecisionTreeClassifier(max_depth=1, random_state=SEED)
+        st_a = DecisionTreeClassifier(max_depth=1, random_state=SEED, class_weight="balanced")
         st_a.fit(Xa, ya)
         sa_f1 = f1_score(yb, st_a.predict(Xb))
         sa_feat = agg.drop(columns=["label"]).columns[st_a.tree_.feature[0]]
