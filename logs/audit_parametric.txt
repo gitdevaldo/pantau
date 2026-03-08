@@ -1,0 +1,99 @@
+======================================================================
+  PANTAU — Dataset Quality Audit
+======================================================================
+
+  Input: data/generated/parametric/pantau_dataset.csv
+  Rows: 500,000
+  Fraud rate: 15.0%
+  Users: 81,418
+  Merchants: 5,468
+
+======================================================================
+  TEST 1: Silhouette Score (Class Separability)
+  Reference: Rousseeuw (1987), J. Computational & Applied Mathematics
+======================================================================
+
+  Level                     Score              Verdict
+  --------------------------------------------------
+  Transaction              0.1925          ✅ Realistic
+  User                     0.4114          ⚠️ Moderate
+  Merchant                 0.6578          🔴 Too clean
+
+  Scale: 0.0-0.2 realistic | 0.2-0.5 moderate | 0.5-1.0 artificial
+
+======================================================================
+  TEST 2: Baseline Model Performance (Can a dumb model solve it?)
+  Method: Logistic Regression, Decision Stump (d=1), Decision Tree (d=3)
+======================================================================
+
+  Transaction-level:
+  Model                             F1    AUC-ROC         Verdict
+  ------------------------------------------------------------
+  Logistic Regression           0.7176     0.9588            ✅ OK
+  Stump (d=1)                   0.7282        N/A      🔴 Too easy
+  Tree (d=3)                    0.6762        N/A            ✅ OK
+  Stump split feature: 'is_round'
+
+  User-level: LR F1=0.9957 🔴 Too easy, Stump F1=0.9938 🔴 Too easy (split: 'unique_merchants')
+
+  Merchant-level: LR F1=0.9947 🔴 Too easy, Stump F1=1.0000 🔴 Too easy (split: 'round_ratio')
+
+  Targets: TX LR F1 < 0.80 | Stump F1 < 0.70 | User/Merchant LR < 0.85
+
+======================================================================
+  TEST 3: Feature-Label Leakage (MI + Information Value)
+  References: Shannon (1948); Siddiqi (2006) Credit Risk Scorecards
+======================================================================
+
+  Feature                    MI       IV         Verdict
+  -------------------------------------------------------
+  amount                 0.2735   3.5285    🔴 SUSPICIOUS
+  log_amount             0.2738   3.5285    🔴 SUSPICIOUS
+  is_round               0.2218   4.4266    🔴 SUSPICIOUS
+  is_nighttime           0.0312   0.4823       ⚠️ Strong
+  is_payday              0.0005   0.0027          ✅ Weak
+  hour                   0.0743   1.2650    🔴 SUSPICIOUS
+  day_of_month           0.0050   0.0561          ✅ Weak
+  day_of_week            0.0104   0.1691          Medium
+
+  IV scale: <0.02 useless | 0.02-0.10 weak | 0.10-0.30 medium | 0.30-0.50 strong | >0.50 suspicious
+
+======================================================================
+  TEST 4: Distribution Overlap (Bhattacharyya Coefficient)
+  Reference: Bhattacharyya (1943), Bull. Calcutta Mathematical Society
+======================================================================
+
+  Feature                 Overlap                   Verdict
+  -------------------------------------------------------
+  amount                   0.9593     ✅ High overlap (good)
+  log_amount               0.7207       ⚠️ Moderate overlap
+  is_round                 0.5239       ⚠️ Moderate overlap
+  is_nighttime             0.9400     ✅ High overlap (good)
+  is_payday                0.9998     ✅ High overlap (good)
+  hour                     0.8465       ⚠️ Moderate overlap
+  day_of_month             0.9911     ✅ High overlap (good)
+  day_of_week              0.9792     ✅ High overlap (good)
+
+  Scale: >0.85 realistic | 0.50-0.85 acceptable | <0.50 concerning | <0.20 fake
+
+======================================================================
+  TEST 5: Borderline Ratio (N1 — Nearest Neighbor Boundary)
+  Reference: Ho & Basu (2002), IEEE TPAMI; Lorena et al. (2019)
+======================================================================
+
+  Overall:  0.0725 (7.2%) — 🔴 Too clean
+  Normal:   0.0453 (4.5%)
+  Judol:    0.2266 (22.7%)
+
+  Scale: <10% too clean | 10-20% moderate | 20-35% realistic | >35% noisy
+
+======================================================================
+  OVERALL DATASET QUALITY VERDICT
+======================================================================
+  🔴 Merchant silhouette = 0.66 (too clean)
+  🔴 Stump F1 = 0.73 (single feature solves it)
+  🔴 Borderline ratio = 7.2% (too few boundary cases)
+  ✅ Transaction silhouette = 0.19 (realistic)
+  ✅ LR F1 = 0.72 (reasonable difficulty)
+
+  VERDICT: 🔴 Dataset has 3 quality issues — generator needs redesign
