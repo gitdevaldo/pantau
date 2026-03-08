@@ -1,0 +1,110 @@
+======================================================================
+  PANTAU — Dataset Quality Comparison
+  Parametric vs GAN
+======================================================================
+
+  Loading parametric: data/generated/parametric/pantau_dataset.csv
+  Loading GAN:        data/generated/gan/pantau_gan_ctgan.csv
+
+======================================================================
+  1. BASIC SHAPE & LABEL DISTRIBUTION
+======================================================================
+                                   Parametric          GAN       Diff
+  ------------------------------------------------------------------
+  Total rows                          500,000      500,000         +0
+  Unique users                         81,418       80,736
+  Unique merchants                      5,468        5,500
+  Normal (label=0)                      85.0%        78.4%      -6.6%
+  Judol (label=1)                       15.0%        21.6%      +6.6%
+
+======================================================================
+  2. AMOUNT DISTRIBUTION
+======================================================================
+                                   Parametric          GAN     Diff %
+  ------------------------------------------------------------------
+  Mean                                 84,179      102,103     +21.3%
+  Median                               57,611       72,617     +26.0%
+  Std                                  81,461       87,587      +7.5%
+  Min                                   1,681       16,867    +903.4%
+  Max                               2,302,927      574,006     -75.1%
+  Mean (Normal)                        82,828      100,092     +20.8%
+  Mean (Judol)                         91,835      109,405     +19.1%
+  Round amount rate                     24.7%        30.1%      +5.4%
+
+======================================================================
+  3. TEMPORAL PATTERNS
+======================================================================
+                                   Parametric          GAN       Diff
+  ------------------------------------------------------------------
+  Late night rate (20-02)               20.2%        14.2%      -6.1%
+  Togel hour rate (13,16,19,22)         19.5%        30.8%     +11.3%
+  Weekend rate                          28.0%        28.0%      +0.0%
+  Peak hour                                12           19
+  Hour KL divergence                                          0.4431
+  Day-of-week KL divergence                                   0.0508
+  Late night (Normal)                   15.1%         9.7%      -5.4%
+  Late night (Judol)                    49.3%        30.5%     -18.8%
+
+======================================================================
+  4. GEOGRAPHIC DISTRIBUTION
+======================================================================
+                                   Parametric          GAN       Diff
+  ------------------------------------------------------------------
+  Unique user provinces                    38           38
+  Unique user cities                      514          514
+  Unique merchant provinces                38           38
+  Unique merchant cities                  514          514
+  Same city rate                        51.9%         8.0%     -43.9%
+  User province KL divergence                                 0.0754
+
+  Top 5 user provinces:
+    Aceh (NAD)                        4.4%        5.8%
+    Jawa Barat                        6.8%        0.0%
+    Jawa Tengah                       7.2%        6.3%
+    Jawa Timur                        7.8%        8.2%
+    Kalimantan Selatan                0.0%        6.5%
+    Sumatera Selatan                  0.0%        7.9%
+    Sumatera Utara                    6.0%        0.0%
+
+======================================================================
+  5. TRANSACTION TYPE DISTRIBUTION
+======================================================================
+                                   Parametric          GAN       Diff
+  ------------------------------------------------------------------
+  QRIS                                 100.0%       100.0%      +0.0%
+  Transaction type KL div                                     0.0000
+  E-wallet rate (total)                  0.0%         0.0%      +0.0%
+
+======================================================================
+  6. JUDOL-SPECIFIC PATTERNS
+======================================================================
+                                   Parametric          GAN       Diff
+  ------------------------------------------------------------------
+
+  --- Normal ---
+  Count                               425,000      392,011
+  Avg amount                           82,828      100,092     +20.8%
+  Round amount rate                     12.1%        21.4%      +9.3%
+  E-wallet rate                          0.0%         0.0%      +0.0%
+  Late night rate                       15.1%         9.7%      -5.4%
+  Weekend rate                          25.5%        27.0%      +1.5%
+
+  --- Judol ---
+  Count                                75,000      107,989
+  Avg amount                           91,835      109,405     +19.1%
+  Round amount rate                     96.2%        61.9%     -34.2%
+  E-wallet rate                          0.0%         0.0%      +0.0%
+  Late night rate                       49.3%        30.5%     -18.8%
+  Weekend rate                          42.3%        31.9%     -10.4%
+
+======================================================================
+  7. QUALITY VERDICT
+======================================================================
+  ❌ ISSUES FOUND
+    ❌ Amount mean drift: 84,179 → 102,103 (+21.3%)
+    ❌ Hour distribution diverged (KL=0.4431)
+    ⚠️  Label ratio changed: 15.0% → 21.6% (GAN natural learning, acceptable)
+======================================================================
+
+  Report saved to: logs/comparison_report.txt
+  Done! ✓
