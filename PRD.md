@@ -376,15 +376,35 @@ Updated Profile
 Ketika multiple layer secara bersamaan menandai entitas yang sama, skor dikuatkan:
 
 ```python
+# Weights auto-tuned via grid search on validation set (70/30 split)
 final_score = (
-    user_score     * 0.15 +
-    merchant_score * 0.25 +
-    network_score  * 0.25 +
-    temporal_score * 0.10 +
-    velocity_score * 0.15 +
-    flow_score     * 0.10
-) + cross_correlation_bonus  # +15 if 4+ layers flag same entity
+    user_score     * W_user +
+    merchant_score * W_merchant +
+    network_score  * W_network +
+    temporal_score * W_temporal +
+    velocity_score * W_velocity +
+    flow_score     * W_flow
+) + cross_correlation_bonus  # bonus if 3+ layers flag same entity
+# All weights (W_*) and thresholds optimized to maximize F1 on held-out test data
 ```
+
+### 8.5 Model Evaluation Protocol
+
+Pipeline menggunakan rigorous evaluation methodology:
+
+1. **Train/Test Split (70/30)**: Model dilatih pada 70% data, dievaluasi pada 30% data yang tidak pernah dilihat model
+2. **Hyperparameter Tuning**: Contamination (Isolation Forest), weights, dan thresholds dioptimasi via grid search pada validation set
+3. **Metrics yang dilaporkan** (semua dihitung pada test set):
+
+| Metric | Deskripsi | Target |
+|---|---|---|
+| **F1 Score** | Harmonic mean precision & recall | ≥ 0.70 |
+| **AUC-ROC** | Area under ROC curve (separability) | ≥ 0.80 |
+| **PR-AUC** | Precision-Recall AUC (for imbalanced data) | ≥ 0.65 |
+| **Precision** | Flagged transactions yang benar judol | ≥ 0.60 |
+| **Recall** | Judol transactions yang berhasil tertangkap | ≥ 0.70 |
+
+4. **Benchmark**: Hasil dibandingkan antara parametric dataset vs GAN-augmented dataset untuk membuktikan value dari synthetic data augmentation
 
 ---
 
@@ -392,10 +412,10 @@ final_score = (
 
 | Score Range | Level | Action |
 |---|---|---|
-| 0 - 50 | Normal ✅ | Pass through |
-| 50 - 70 | Suspicious ⚠️ | Monitor & log |
-| 70 - 90 | High Risk 🚩 | Alert compliance officer + human review |
-| 90 - 100 | Critical ❄️ | Auto-freeze + mandatory review within 2 hours |
+| 0 - 40 | Normal ✅ | Pass through |
+| 40 - 60 | Suspicious ⚠️ | Monitor & log |
+| 60 - 80 | High Risk 🚩 | Alert compliance officer + human review |
+| 80 - 100 | Critical ❄️ | Auto-freeze + mandatory review within 2 hours |
 
 ---
 

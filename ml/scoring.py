@@ -22,6 +22,7 @@ Risk levels (PRD Section 9):
 
 import numpy as np
 import pandas as pd
+from sklearn.metrics import roc_auc_score, average_precision_score
 
 
 # ============================================================
@@ -141,6 +142,7 @@ def evaluate(scored_df: pd.DataFrame, threshold: float = 40.0) -> dict:
     """Evaluate combined scoring against ground truth labels."""
     predicted = (scored_df["final_score"] >= threshold).astype(int)
     actual = scored_df["label"].astype(int)
+    scores = scored_df["final_score"].values
 
     tp = ((predicted == 1) & (actual == 1)).sum()
     fp = ((predicted == 1) & (actual == 0)).sum()
@@ -150,6 +152,16 @@ def evaluate(scored_df: pd.DataFrame, threshold: float = 40.0) -> dict:
     precision = tp / max(tp + fp, 1)
     recall = tp / max(tp + fn, 1)
     f1 = 2 * precision * recall / max(precision + recall, 1e-9)
+
+    # AUC-ROC and PR-AUC (continuous score vs binary label)
+    try:
+        auc_roc = roc_auc_score(actual, scores)
+    except ValueError:
+        auc_roc = 0.0
+    try:
+        pr_auc = average_precision_score(actual, scores)
+    except ValueError:
+        pr_auc = 0.0
 
     risk_dist = scored_df["risk_level"].value_counts().to_dict()
 
@@ -162,6 +174,8 @@ def evaluate(scored_df: pd.DataFrame, threshold: float = 40.0) -> dict:
         "precision": round(precision, 4),
         "recall": round(recall, 4),
         "f1_score": round(f1, 4),
+        "auc_roc": round(auc_roc, 4),
+        "pr_auc": round(pr_auc, 4),
         "risk_distribution": risk_dist,
         "avg_score_normal": round(scored_df[actual == 0]["final_score"].mean(), 2),
         "avg_score_judol": round(scored_df[actual == 1]["final_score"].mean(), 2),
@@ -177,9 +191,11 @@ def print_report(metrics: dict):
     print("=" * 60)
     print(f"  Total transactions: {metrics['total_transactions']:,}")
     print(f"  Flagged (score ≥ {metrics['threshold']}): {metrics['flagged_transactions']:,}")
-    print(f"\n  Precision: {metrics['precision']:.4f}")
-    print(f"  Recall:    {metrics['recall']:.4f}")
-    print(f"  F1 Score:  {metrics['f1_score']:.4f}")
+    print(f"\n  Precision:  {metrics['precision']:.4f}")
+    print(f"  Recall:     {metrics['recall']:.4f}")
+    print(f"  F1 Score:   {metrics['f1_score']:.4f}")
+    print(f"  AUC-ROC:    {metrics['auc_roc']:.4f}")
+    print(f"  PR-AUC:     {metrics['pr_auc']:.4f}")
     print(f"\n  Avg score (normal): {metrics['avg_score_normal']:.1f}")
     print(f"  Avg score (judol):  {metrics['avg_score_judol']:.1f}")
     print(f"\n  Risk distribution:")
