@@ -1,0 +1,43 @@
+======================================================================
+  PANTAU — Training Report
+  Dataset: test_eval (data/generated/parametric/pantau_dataset.csv)
+  Date: 2026-03-07 21:30:19
+  Evaluation: 70/30 train/test split (test set metrics)
+======================================================================
+
+  Layer                      Precision     Recall         F1     Time
+  -----------------------------------------------------------------
+  1. User Behavior              0.2188     0.2494     0.2331    39.6s
+  2. Merchant Behavior          0.2564     0.5595     0.3516    21.4s
+  3. Network Clustering         0.2687     0.5833     0.3680     3.6s
+  4. Temporal Pattern           0.3620     0.3118     0.3350    11.3s
+  5. Velocity Delta             0.7222     0.2063     0.3210     0.1s
+  6. Money Flow                 0.4875     0.7738     0.5982    10.8s
+  -----------------------------------------------------------------
+  COMBINED                      0.9747     0.8635     0.9158    86.9s
+
+  AUC-ROC:    0.9231
+  PR-AUC:     0.9122
+
+  Avg score (normal): 12.6
+  Avg score (judol):  66.5
+
+  Risk distribution:
+    Critical: 277
+    High Risk: 15
+    Normal: 2,630
+    Suspicious: 78
+
+  --- Auto-Tuned Parameters ---
+  Combos tested: 1,000
+  Threshold: 35
+  Weights:
+    user: 0.05
+    merchant: 0.02
+    network: 0.07
+    temporal: 0.03
+    velocity: 0.51
+    flow: 0.32
+
+  Total time: 190.5s
+======================================================================

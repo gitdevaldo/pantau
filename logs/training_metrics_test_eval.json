@@ -1,0 +1,114 @@
+{
+  "user": {
+    "total_users": 6461,
+    "flagged_users": 969,
+    "true_positive": 212,
+    "false_positive": 757,
+    "false_negative": 638,
+    "true_negative": 4854,
+    "precision": 0.2188,
+    "recall": 0.2494,
+    "f1_score": 0.2331
+  },
+  "merchant": {
+    "total_merchants": 3665,
+    "flagged_merchants": 550,
+    "true_positive": 141,
+    "false_positive": 409,
+    "false_negative": 111,
+    "true_negative": 3004,
+    "precision": 0.2564,
+    "recall": 0.5595,
+    "f1_score": 0.3516
+  },
+  "network": {
+    "total_merchants": 3665,
+    "flagged_merchants": 547,
+    "true_positive": 147,
+    "false_positive": 400,
+    "false_negative": 105,
+    "true_negative": 3013,
+    "precision": 0.2687,
+    "recall": 0.5833,
+    "f1_score": 0.368
+  },
+  "temporal": {
+    "total_users": 6461,
+    "flagged_users": 732,
+    "threshold": 40.0,
+    "true_positive": 265,
+    "false_positive": 467,
+    "false_negative": 585,
+    "true_negative": 5144,
+    "precision": 0.362,
+    "recall": 0.3118,
+    "f1_score": 0.335
+  },
+  "velocity": {
+    "total_merchants": 3665,
+    "flagged_merchants": 72,
+    "threshold": 40.0,
+    "true_positive": 52,
+    "false_positive": 20,
+    "false_negative": 200,
+    "true_negative": 3393,
+    "precision": 0.7222,
+    "recall": 0.2063,
+    "f1_score": 0.321
+  },
+  "flow": {
+    "total_merchants": 3665,
+    "flagged_merchants": 400,
+    "threshold": 40.0,
+    "true_positive": 195,
+    "false_positive": 205,
+    "false_negative": 57,
+    "true_negative": 3208,
+    "precision": 0.4875,
+    "recall": 0.7738,
+    "f1_score": 0.5982
+  },
+  "combined": {
+    "total_transactions": 3000,
+    "flagged_transactions": 396,
+    "threshold": 35,
+    "true_positive": 386,
+    "false_positive": 10,
+    "false_negative": 61,
+    "true_negative": 2543,
+    "precision": 0.9747,
+    "recall": 0.8635,
+    "f1_score": 0.9158,
+    "auc_roc": 0.9231,
+    "pr_auc": 0.9122,
+    "risk_distribution": {
+      "Normal": 2630,
+      "Critical": 277,
+      "Suspicious": 78,
+      "High Risk": 15
+    },
+    "avg_score_normal": 12.59,
+    "avg_score_judol": 66.49
+  },
+  "timings": {
+    "user": 39.645875215530396,
+    "merchant": 21.375840187072754,
+    "network": 3.6345667839050293,
+    "temporal": 11.29063606262207,
+    "velocity": 0.13509297370910645,
+    "flow": 10.810656070709229
+  },
+  "auto_tune": {
+    "weights": {
+      "user": 0.05,
+      "merchant": 0.02,
+      "network": 0.07,
+      "temporal": 0.03,
+      "velocity": 0.51,
+      "flow": 0.31999999999999995
+    },
+    "threshold": 35,
+    "best_f1": 0.9158,
+    "combos_tested": 1000
+  }
+}

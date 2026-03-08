@@ -1,0 +1,28 @@
+======================================================================
+  PANTAU — Training Report
+  Dataset: parametric (data/generated/parametric/pantau_dataset.csv)
+  Date: 2026-03-07 21:22:31
+======================================================================
+
+  Layer                      Precision     Recall         F1     Time
+  -----------------------------------------------------------------
+  1. User Behavior              0.6180     0.2396     0.3453   513.9s
+  2. Merchant Behavior          0.3203     0.2572     0.2853   855.3s
+  3. Network Clustering         0.6735     0.5014     0.5748   376.4s
+  4. Temporal Pattern           0.9929     0.2255     0.3676   305.7s
+  5. Velocity Delta             0.0577     0.0098     0.0168     4.5s
+  6. Money Flow                 0.6495     0.9491     0.7713   375.9s
+  -----------------------------------------------------------------
+  COMBINED                      0.1632     0.7746     0.2696  2431.7s
+
+  Avg score (normal): 49.1
+  Avg score (judol):  60.2
+
+  Risk distribution:
+    Critical: 5,561
+    High Risk: 256,329
+    Normal: 144,153
+    Suspicious: 93,957
+
+  Total time: 2438.9s
+======================================================================

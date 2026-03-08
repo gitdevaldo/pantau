@@ -1,0 +1,99 @@
+{
+  "user": {
+    "total_users": 81556,
+    "flagged_users": 12234,
+    "true_positive": 7561,
+    "false_positive": 4673,
+    "false_negative": 24002,
+    "true_negative": 45320,
+    "precision": 0.618,
+    "recall": 0.2396,
+    "f1_score": 0.3453
+  },
+  "merchant": {
+    "total_merchants": 162966,
+    "flagged_merchants": 24337,
+    "true_positive": 7795,
+    "false_positive": 16542,
+    "false_negative": 22517,
+    "true_negative": 116112,
+    "precision": 0.3203,
+    "recall": 0.2572,
+    "f1_score": 0.2853
+  },
+  "network": {
+    "total_merchants": 162966,
+    "flagged_merchants": 22564,
+    "true_positive": 15197,
+    "false_positive": 7367,
+    "false_negative": 15115,
+    "true_negative": 125287,
+    "precision": 0.6735,
+    "recall": 0.5014,
+    "f1_score": 0.5748
+  },
+  "temporal": {
+    "total_users": 81556,
+    "flagged_users": 7170,
+    "threshold": 40.0,
+    "true_positive": 7119,
+    "false_positive": 51,
+    "false_negative": 24444,
+    "true_negative": 49942,
+    "precision": 0.9929,
+    "recall": 0.2255,
+    "f1_score": 0.3676
+  },
+  "velocity": {
+    "total_merchants": 162966,
+    "flagged_merchants": 5143,
+    "threshold": 40.0,
+    "true_positive": 297,
+    "false_positive": 4846,
+    "false_negative": 30015,
+    "true_negative": 127808,
+    "precision": 0.0577,
+    "recall": 0.0098,
+    "f1_score": 0.0168
+  },
+  "flow": {
+    "total_merchants": 162966,
+    "flagged_merchants": 44291,
+    "threshold": 40.0,
+    "true_positive": 28769,
+    "false_positive": 15522,
+    "false_negative": 1543,
+    "true_negative": 117132,
+    "precision": 0.6495,
+    "recall": 0.9491,
+    "f1_score": 0.7713
+  },
+  "combined": {
+    "total_transactions": 500000,
+    "flagged_transactions": 355904,
+    "threshold": 40.0,
+    "true_positive": 58093,
+    "false_positive": 297811,
+    "false_negative": 16907,
+    "true_negative": 127189,
+    "precision": 0.1632,
+    "recall": 0.7746,
+    "f1_score": 0.2696,
+    "risk_distribution": {
+      "High Risk": 256329,
+      "Normal": 144153,
+      "Suspicious": 93957,
+      "Critical": 5561
+    },
+    "avg_score_normal": 49.12,
+    "avg_score_judol": 60.24
+  },
+  "timings": {
+    "user": 513.8676195144653,
+    "merchant": 855.3050229549408,
+    "network": 376.4327771663666,
+    "temporal": 305.70861864089966,
+    "velocity": 4.479766845703125,
+    "flow": 375.9087812900543
+  }
+}
