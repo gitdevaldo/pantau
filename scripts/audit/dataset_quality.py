@@ -4,12 +4,16 @@ Dataset Quality Audit — Statistical Tests for Synthetic Fraud Data
 Measures whether a synthetic dataset is realistic or artificially separable.
 Run AFTER generating data, BEFORE training, to catch quality issues early.
 
-5 research-backed tests:
-  1. Silhouette Score (Rousseeuw 1987)
-  2. Baseline Model Performance (LR, Decision Stump, DT depth=3)
+9 research-backed tests covering all 6 ML layers:
+  1. Silhouette Score (Rousseeuw 1987) — Layer 1 & 2
+  2. Baseline Model Performance (LR, Decision Stump, DT depth=3) — Layer 1 & 2
   3. Feature-Label Mutual Information + Information Value (Shannon 1948; Siddiqi 2006)
   4. Distribution Overlap — Bhattacharyya Coefficient (Bhattacharyya 1943)
   5. Borderline Ratio — N1 metric (Ho & Basu 2002, IEEE TPAMI)
+  6. Network/Graph Signal — PageRank & community structure (Layer 3)
+  7. Temporal Pattern Signal — burst detection & session clustering (Layer 4)
+  8. Velocity/Delta Signal — cross-merchant rate anomalies (Layer 5)
+  9. Money Flow Signal — fan-in concentration analysis (Layer 6)
 
 Usage:
     python3 scripts/audit/dataset_quality.py --input data/generated/parametric/pantau_dataset.csv
@@ -323,9 +327,350 @@ def test_borderline_ratio(df):
 
 
 # ============================================================
+# TEST 6: Network/Graph Signal (Layer 3)
+# ============================================================
+def test_network_signal(df):
+    print("\n" + "=" * 70)
+    print("  TEST 6: Network/Graph Signal (Layer 3 — Cluster Detection)")
+    print("  Checks: graph structure, community separation, PageRank concentration")
+    print("=" * 70)
+
+    try:
+        import networkx as nx
+    except ImportError:
+        print("\n  ⚠️ networkx not installed — skipping network test")
+        return {}
+
+    # Build bipartite user→merchant graph
+    np.random.seed(SEED)
+    sample = df.sample(n=min(100000, len(df)), random_state=SEED)
+    G = nx.Graph()
+    for _, row in sample.iterrows():
+        G.add_edge(row["user_id"], row["merchant_id"])
+
+    n_nodes = G.number_of_nodes()
+    n_edges = G.number_of_edges()
+
+    # Connected components
+    components = list(nx.connected_components(G))
+    largest_cc = max(components, key=len)
+    cc_ratio = len(largest_cc) / n_nodes
+
+    # PageRank on judol vs normal merchants
+    pr = nx.pagerank(G, max_iter=50, tol=1e-4)
+
+    judol_merchants = set(df[df["label"] == 1]["merchant_id"].unique())
+    normal_merchants = set(df[df["label"] == 0]["merchant_id"].unique()) - judol_merchants
+
+    pr_judol = [pr.get(m, 0) for m in judol_merchants if m in pr]
+    pr_normal = [pr.get(m, 0) for m in normal_merchants if m in pr]
+
+    mean_pr_judol = np.mean(pr_judol) if pr_judol else 0
+    mean_pr_normal = np.mean(pr_normal) if pr_normal else 0
+    pr_ratio = mean_pr_judol / (mean_pr_normal + 1e-10)
+
+    # Judol merchant degree (unique users)
+    deg_judol = [G.degree(m) for m in judol_merchants if m in G]
+    deg_normal = [G.degree(m) for m in normal_merchants if m in G]
+    mean_deg_judol = np.mean(deg_judol) if deg_judol else 0
+    mean_deg_normal = np.mean(deg_normal) if deg_normal else 0
+
+    print(f"\n  Graph: {n_nodes:,} nodes, {n_edges:,} edges")
+    print(f"  Largest component: {len(largest_cc):,} nodes ({cc_ratio*100:.1f}%)")
+    print(f"  Connected components: {len(components):,}")
+
+    print(f"\n  {'Metric':<35} {'Judol':>10} {'Normal':>10} {'Verdict':>15}")
+    print(f"  {'-'*70}")
+
+    # PageRank
+    if pr_ratio > 5:
+        v_pr = "🔴 Too obvious"
+    elif pr_ratio > 1.5:
+        v_pr = "✅ Signal exists"
+    else:
+        v_pr = "⚠️ Weak signal"
+    print(f"  {'Mean PageRank':<35} {mean_pr_judol:>10.6f} {mean_pr_normal:>10.6f} {v_pr:>15}")
+
+    # Degree
+    deg_ratio = mean_deg_judol / (mean_deg_normal + 1e-10)
+    if deg_ratio > 5:
+        v_deg = "🔴 Too obvious"
+    elif deg_ratio > 1.2:
+        v_deg = "✅ Signal exists"
+    else:
+        v_deg = "⚠️ Weak signal"
+    print(f"  {'Mean degree (users)':<35} {mean_deg_judol:>10.1f} {mean_deg_normal:>10.1f} {v_deg:>15}")
+
+    # Check graph connectivity — judol merchants should be reachable through shared users
+    if cc_ratio > 0.90:
+        v_cc = "✅ Connected"
+    elif cc_ratio > 0.50:
+        v_cc = "⚠️ Fragmented"
+    else:
+        v_cc = "🔴 Disconnected"
+    print(f"  {'Largest component coverage':<35} {cc_ratio*100:>10.1f}% {'':>10} {v_cc:>15}")
+
+    return {"pr_ratio": pr_ratio, "deg_ratio": deg_ratio, "cc_ratio": cc_ratio}
+
+
+# ============================================================
+# TEST 7: Temporal Pattern Signal (Layer 4)
+# ============================================================
+def test_temporal_signal(df):
+    print("\n" + "=" * 70)
+    print("  TEST 7: Temporal Pattern Signal (Layer 4 — Timing & Bursts)")
+    print("  Checks: session clustering, rapid-fire bursts, hour entropy")
+    print("=" * 70)
+
+    judol_users = df[df["label"] == 1]["user_id"].unique()
+    normal_only_users = set(df["user_id"].unique()) - set(judol_users)
+
+    results = {}
+
+    # Per-user burst detection: transactions within 30 min of each other
+    def calc_burst_ratio(user_df):
+        if len(user_df) < 3:
+            return 0.0
+        ts = user_df["timestamp"].sort_values()
+        gaps = ts.diff().dt.total_seconds().dropna()
+        bursts = (gaps <= 1800).sum()  # within 30 min
+        return bursts / len(gaps) if len(gaps) > 0 else 0.0
+
+    # Sample users for efficiency
+    np.random.seed(SEED)
+    sample_judol = np.random.choice(judol_users, size=min(500, len(judol_users)), replace=False)
+    sample_normal = np.random.choice(list(normal_only_users),
+                                      size=min(2000, len(normal_only_users)), replace=False)
+
+    judol_txs = df[df["user_id"].isin(sample_judol)]
+    normal_txs = df[df["user_id"].isin(sample_normal)]
+
+    # Burst ratios (label=1 transactions only for judol users)
+    judol_label1 = judol_txs[judol_txs["label"] == 1]
+    burst_judol = judol_label1.groupby("user_id").apply(calc_burst_ratio)
+    burst_normal = normal_txs.groupby("user_id").apply(calc_burst_ratio)
+
+    mean_burst_judol = burst_judol.mean() if len(burst_judol) > 0 else 0
+    mean_burst_normal = burst_normal.mean() if len(burst_normal) > 0 else 0
+
+    # Hour entropy (how spread out are transactions across hours)
+    def hour_entropy(user_df):
+        counts = user_df["hour"].value_counts(normalize=True)
+        return -(counts * np.log2(counts + 1e-10)).sum()
+
+    ent_judol = judol_label1.groupby("user_id").apply(hour_entropy)
+    ent_normal = normal_txs.groupby("user_id").apply(hour_entropy)
+    mean_ent_judol = ent_judol.mean() if len(ent_judol) > 0 else 0
+    mean_ent_normal = ent_normal.mean() if len(ent_normal) > 0 else 0
+
+    # Night ratio comparison (20:00-02:00)
+    night_judol = judol_label1["hour"].apply(lambda h: h >= 20 or h < 2).mean()
+    night_normal = normal_txs["hour"].apply(lambda h: h >= 20 or h < 2).mean()
+
+    # Togel timing correlation (13, 16, 19, 22)
+    togel_hours = {13, 16, 19, 22}
+    togel_judol = judol_label1["hour"].isin(togel_hours).mean()
+    togel_normal = normal_txs["hour"].isin(togel_hours).mean()
+
+    print(f"\n  {'Metric':<35} {'Judol':>10} {'Normal':>10} {'Verdict':>15}")
+    print(f"  {'-'*70}")
+
+    # Burst ratio
+    if mean_burst_judol > mean_burst_normal * 1.5:
+        v_burst = "✅ Signal exists"
+    elif mean_burst_judol > mean_burst_normal * 1.1:
+        v_burst = "⚠️ Weak signal"
+    else:
+        v_burst = "🔴 No signal"
+    print(f"  {'Burst ratio (<30min gaps)':<35} {mean_burst_judol:>10.3f} {mean_burst_normal:>10.3f} {v_burst:>15}")
+
+    # Hour entropy
+    if abs(mean_ent_judol - mean_ent_normal) > 0.3:
+        v_ent = "✅ Signal exists"
+    elif abs(mean_ent_judol - mean_ent_normal) > 0.1:
+        v_ent = "⚠️ Weak signal"
+    else:
+        v_ent = "🔴 No signal"
+    print(f"  {'Hour entropy (bits)':<35} {mean_ent_judol:>10.2f} {mean_ent_normal:>10.2f} {v_ent:>15}")
+
+    # Night ratio
+    night_diff = night_judol - night_normal
+    if night_diff > 0.10:
+        v_night = "✅ Signal exists"
+    elif night_diff > 0.03:
+        v_night = "⚠️ Weak signal"
+    else:
+        v_night = "🔴 No signal"
+    print(f"  {'Night ratio (20-02h)':<35} {night_judol:>10.3f} {night_normal:>10.3f} {v_night:>15}")
+
+    # Togel timing
+    togel_ratio = togel_judol / (togel_normal + 1e-10)
+    if togel_ratio > 1.3:
+        v_togel = "✅ Signal exists"
+    elif togel_ratio > 1.05:
+        v_togel = "⚠️ Weak signal"
+    else:
+        v_togel = "🔴 No signal"
+    print(f"  {'Togel hours (13,16,19,22)':<35} {togel_judol:>10.3f} {togel_normal:>10.3f} {v_togel:>15}")
+
+    return {"burst_ratio_j": mean_burst_judol, "burst_ratio_n": mean_burst_normal,
+            "night_diff": night_diff}
+
+
+# ============================================================
+# TEST 8: Velocity/Delta Signal (Layer 5)
+# ============================================================
+def test_velocity_signal(df):
+    print("\n" + "=" * 70)
+    print("  TEST 8: Velocity/Delta Signal (Layer 5 — Rate Anomalies)")
+    print("  Checks: tx velocity per merchant, inter-tx time gaps, amount variance")
+    print("=" * 70)
+
+    judol_merchants = set(df[df["label"] == 1]["merchant_id"].unique())
+    normal_merchants = set(df["merchant_id"].unique()) - judol_merchants
+
+    # Per-merchant velocity: tx per day
+    date_range_days = (df["timestamp"].max() - df["timestamp"].min()).days + 1
+
+    merch_counts = df.groupby("merchant_id").agg(
+        tx_count=("amount", "count"),
+        unique_users=("user_id", "nunique"),
+        std_amount=("amount", "std"),
+        mean_gap=("timestamp", lambda x: x.sort_values().diff().dt.total_seconds().mean()
+                  if len(x) > 1 else float("nan")),
+    ).fillna(0)
+
+    merch_counts["tx_per_day"] = merch_counts["tx_count"] / date_range_days
+    merch_counts["is_judol"] = merch_counts.index.isin(judol_merchants).astype(int)
+
+    judol_m = merch_counts[merch_counts["is_judol"] == 1]
+    normal_m = merch_counts[merch_counts["is_judol"] == 0]
+
+    # Velocity (tx/day)
+    vel_judol = judol_m["tx_per_day"].mean()
+    vel_normal = normal_m["tx_per_day"].mean()
+
+    # Mean inter-tx gap (seconds)
+    gap_judol = judol_m["mean_gap"].replace(0, np.nan).mean()
+    gap_normal = normal_m["mean_gap"].replace(0, np.nan).mean()
+
+    # Amount std (variance in transaction amounts)
+    std_judol = judol_m["std_amount"].mean()
+    std_normal = normal_m["std_amount"].mean()
+
+    # Users per merchant
+    upm_judol = judol_m["unique_users"].mean()
+    upm_normal = normal_m["unique_users"].mean()
+
+    print(f"\n  {'Metric':<35} {'Judol':>12} {'Normal':>12} {'Verdict':>15}")
+    print(f"  {'-'*74}")
+
+    # Velocity
+    vel_ratio = vel_judol / (vel_normal + 1e-10)
+    v_vel = "✅ Signal exists" if vel_ratio > 1.3 else ("⚠️ Weak signal" if vel_ratio > 1.05 else "🔴 No signal")
+    print(f"  {'Tx/day per merchant':<35} {vel_judol:>12.2f} {vel_normal:>12.2f} {v_vel:>15}")
+
+    # Gap
+    if gap_judol > 0 and gap_normal > 0:
+        gap_ratio = gap_normal / (gap_judol + 1e-10)
+        v_gap = "✅ Signal exists" if gap_ratio > 1.3 else ("⚠️ Weak signal" if gap_ratio > 1.05 else "🔴 No signal")
+        print(f"  {'Mean inter-tx gap (sec)':<35} {gap_judol:>12.0f} {gap_normal:>12.0f} {v_gap:>15}")
+
+    # Amount std
+    std_ratio = std_judol / (std_normal + 1e-10)
+    v_std = "✅ Signal exists" if abs(std_ratio - 1) > 0.2 else ("⚠️ Weak signal" if abs(std_ratio - 1) > 0.05 else "🔴 No signal")
+    print(f"  {'Amount std dev':<35} {std_judol:>12.0f} {std_normal:>12.0f} {v_std:>15}")
+
+    # Users per merchant
+    upm_ratio = upm_judol / (upm_normal + 1e-10)
+    v_upm = "✅ Signal exists" if upm_ratio > 1.3 else ("⚠️ Weak signal" if upm_ratio > 1.05 else "🔴 No signal")
+    print(f"  {'Unique users/merchant':<35} {upm_judol:>12.1f} {upm_normal:>12.1f} {v_upm:>15}")
+
+    return {"vel_ratio": vel_ratio, "std_ratio": std_ratio, "upm_ratio": upm_ratio}
+
+
+# ============================================================
+# TEST 9: Money Flow Signal (Layer 6)
+# ============================================================
+def test_money_flow(df):
+    print("\n" + "=" * 70)
+    print("  TEST 9: Money Flow Signal (Layer 6 — Fan-in Analysis)")
+    print("  Checks: inflow concentration, user fan-out, flow asymmetry")
+    print("=" * 70)
+
+    judol_merchants = set(df[df["label"] == 1]["merchant_id"].unique())
+    normal_merchants = set(df["merchant_id"].unique()) - judol_merchants
+
+    # Fan-in: total money flowing INTO each merchant
+    merchant_inflow = df.groupby("merchant_id").agg(
+        total_inflow=("amount", "sum"),
+        tx_count=("amount", "count"),
+        unique_senders=("user_id", "nunique"),
+        mean_amount=("amount", "mean"),
+    )
+    merchant_inflow["is_judol"] = merchant_inflow.index.isin(judol_merchants).astype(int)
+
+    judol_flow = merchant_inflow[merchant_inflow["is_judol"] == 1]
+    normal_flow = merchant_inflow[merchant_inflow["is_judol"] == 0]
+
+    # Concentration: top-user share of merchant's inflow
+    def top_user_share(merchant_df):
+        if len(merchant_df) == 0:
+            return 0.0
+        user_totals = merchant_df.groupby("user_id")["amount"].sum()
+        if len(user_totals) == 0:
+            return 0.0
+        return user_totals.max() / (user_totals.sum() + 1e-10)
+
+    np.random.seed(SEED)
+    sample_judol_m = np.random.choice(list(judol_merchants),
+                                       size=min(200, len(judol_merchants)), replace=False)
+    sample_normal_m = np.random.choice(list(normal_merchants),
+                                        size=min(1000, len(normal_merchants)), replace=False)
+
+    conc_judol = [top_user_share(df[df["merchant_id"] == m]) for m in sample_judol_m]
+    conc_normal = [top_user_share(df[df["merchant_id"] == m]) for m in sample_normal_m]
+
+    mean_conc_judol = np.mean(conc_judol) if conc_judol else 0
+    mean_conc_normal = np.mean(conc_normal) if conc_normal else 0
+
+    # Fan-out: how many unique merchants does each user send to
+    judol_users = set(df[df["label"] == 1]["user_id"].unique())
+    normal_only_users = set(df["user_id"].unique()) - judol_users
+
+    user_fanout = df.groupby("user_id")["merchant_id"].nunique()
+    fanout_judol = user_fanout[user_fanout.index.isin(judol_users)].mean()
+    fanout_normal = user_fanout[user_fanout.index.isin(normal_only_users)].mean()
+
+    # Mean inflow per merchant
+    inflow_judol = judol_flow["total_inflow"].mean()
+    inflow_normal = normal_flow["total_inflow"].mean()
+
+    print(f"\n  {'Metric':<35} {'Judol':>12} {'Normal':>12} {'Verdict':>15}")
+    print(f"  {'-'*74}")
+
+    # Top-user concentration
+    conc_diff = mean_conc_judol - mean_conc_normal
+    v_conc = "✅ Signal exists" if conc_diff > 0.05 else ("⚠️ Weak signal" if conc_diff > 0.01 else "🔴 No signal")
+    print(f"  {'Top-user inflow share':<35} {mean_conc_judol:>12.3f} {mean_conc_normal:>12.3f} {v_conc:>15}")
+
+    # Fan-out
+    fanout_ratio = fanout_judol / (fanout_normal + 1e-10)
+    v_fan = "✅ Signal exists" if fanout_ratio > 1.2 else ("⚠️ Weak signal" if fanout_ratio > 1.05 else "🔴 No signal")
+    print(f"  {'User merchant fan-out':<35} {fanout_judol:>12.1f} {fanout_normal:>12.1f} {v_fan:>15}")
+
+    # Total inflow
+    inflow_ratio = inflow_judol / (inflow_normal + 1e-10)
+    v_inflow = "✅ Signal exists" if inflow_ratio > 1.3 else ("⚠️ Weak signal" if inflow_ratio > 1.05 else "🔴 No signal")
+    print(f"  {'Mean total inflow (Rp)':<35} {inflow_judol:>12,.0f} {inflow_normal:>12,.0f} {v_inflow:>15}")
+
+    return {"conc_diff": conc_diff, "fanout_ratio": fanout_ratio, "inflow_ratio": inflow_ratio}
+
+
+# ============================================================
 # SUMMARY
 # ============================================================
-def print_summary(sil, baselines, borderline):
+def print_summary(sil, baselines, borderline, network, temporal, velocity, money_flow):
     print("\n" + "=" * 70)
     print("  OVERALL DATASET QUALITY VERDICT")
     print("=" * 70)
@@ -333,6 +678,7 @@ def print_summary(sil, baselines, borderline):
     issues = 0
     checks = []
 
+    # Separability checks (should NOT be too easy)
     if sil["merchant"] > 0.5:
         checks.append(f"  🔴 Merchant silhouette = {sil['merchant']:.2f} (too clean)")
         issues += 1
@@ -349,12 +695,51 @@ def print_summary(sil, baselines, borderline):
         checks.append(f"  🔴 Borderline ratio = {borderline['overall']*100:.1f}% (too few boundary cases)")
         issues += 1
 
+    # Signal checks (should HAVE signal for ML layers)
+    signal_count = 0
+    signal_total = 0
+
+    if network:
+        signal_total += 2
+        if network.get("pr_ratio", 0) > 1.5:
+            signal_count += 1
+        if network.get("cc_ratio", 0) > 0.90:
+            signal_count += 1
+
+    if temporal:
+        signal_total += 2
+        if temporal.get("burst_ratio_j", 0) > temporal.get("burst_ratio_n", 0) * 1.5:
+            signal_count += 1
+        if temporal.get("night_diff", 0) > 0.03:
+            signal_count += 1
+
+    if velocity:
+        signal_total += 2
+        if velocity.get("vel_ratio", 0) > 1.3:
+            signal_count += 1
+        if velocity.get("upm_ratio", 0) > 1.3:
+            signal_count += 1
+
+    if money_flow:
+        signal_total += 2
+        if money_flow.get("conc_diff", 0) > 0.01:
+            signal_count += 1
+        if money_flow.get("fanout_ratio", 0) > 1.05:
+            signal_count += 1
+
+    if signal_total > 0 and signal_count < signal_total * 0.5:
+        checks.append(f"  🔴 ML signal coverage: {signal_count}/{signal_total} signals detected (layers 3-6 may underperform)")
+        issues += 1
+
+    # Positive checks
     if sil["tx"] < 0.2:
         checks.append(f"  ✅ Transaction silhouette = {sil['tx']:.2f} (realistic)")
     if baselines["tx_lr_f1"] < 0.80:
         checks.append(f"  ✅ LR F1 = {baselines['tx_lr_f1']:.2f} (reasonable difficulty)")
     if borderline["overall"] >= 0.20:
         checks.append(f"  ✅ Borderline = {borderline['overall']*100:.1f}% (realistic)")
+    if signal_total > 0 and signal_count >= signal_total * 0.5:
+        checks.append(f"  ✅ ML signal coverage: {signal_count}/{signal_total} signals detected")
 
     for c in checks:
         print(c)
@@ -413,7 +798,11 @@ def main():
     test_feature_leakage(df)
     test_distribution_overlap(df)
     borderline = test_borderline_ratio(df)
-    print_summary(sil, baselines, borderline)
+    network = test_network_signal(df)
+    temporal = test_temporal_signal(df)
+    velocity = test_velocity_signal(df)
+    money_flow = test_money_flow(df)
+    print_summary(sil, baselines, borderline, network, temporal, velocity, money_flow)
 
     if output_file:
         output_file.close()
