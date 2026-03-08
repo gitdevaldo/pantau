@@ -5,6 +5,10 @@ Built for **PIDI - DIGDAYA X Hackathon 2026** (Bank Indonesia). Deadline: March 
 
 ## Rules
 
+0. **FIRST PRIORITY: Read `.claude/lessons/lessons.md` before every task.** This file contains
+   accumulated lessons from past mistakes and user feedback. Load it before starting any work.
+   If user feedback or corrections occur, immediately add a new lesson entry with: Case, Problem,
+   Should Be, and Goal.
 1. **Commit and push after every change**, even small ones. Never batch unrelated changes.
 2. **Only gitignore `data/base/`** (Kaggle downloads). All generated data, models, logs, and
    scored outputs must be committed and pushed.
