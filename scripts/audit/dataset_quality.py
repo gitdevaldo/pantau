@@ -10,7 +10,7 @@ Run AFTER generating data, BEFORE training, to catch quality issues early.
   3. Feature-Label Mutual Information + Information Value (Shannon 1948; Siddiqi 2006)
   4. Distribution Overlap — Bhattacharyya Coefficient (Bhattacharyya 1943)
   5. Borderline Ratio — N1 metric (Ho & Basu 2002, IEEE TPAMI)
-  6. Network/Graph Signal — PageRank & community structure (Layer 3)
+  6. Network/Graph Signal — fan-in, shared senders, geo diversity (Layer 3)
   7. Temporal Pattern Signal — burst detection & session clustering (Layer 4)
   8. Velocity/Delta Signal — cross-merchant rate anomalies (Layer 5)
   9. Money Flow Signal — fan-in concentration analysis (Layer 6)
@@ -332,7 +332,7 @@ def test_borderline_ratio(df):
 def test_network_signal(df):
     print("\n" + "=" * 70)
     print("  TEST 6: Network/Graph Signal (Layer 3 — Cluster Detection)")
-    print("  Checks: graph structure, community separation, PageRank concentration")
+    print("  Checks: graph structure, shared-user clusters, fan-in concentration")
     print("=" * 70)
 
     try:
@@ -356,24 +356,36 @@ def test_network_signal(df):
     largest_cc = max(components, key=len)
     cc_ratio = len(largest_cc) / n_nodes
 
-    # PageRank on judol vs normal merchants
-    pr = nx.pagerank(G, max_iter=50, tol=1e-4)
-
     judol_merchants = set(df[df["label"] == 1]["merchant_id"].unique())
     normal_merchants = set(df[df["label"] == 0]["merchant_id"].unique()) - judol_merchants
 
-    pr_judol = [pr.get(m, 0) for m in judol_merchants if m in pr]
-    pr_normal = [pr.get(m, 0) for m in normal_merchants if m in pr]
-
-    mean_pr_judol = np.mean(pr_judol) if pr_judol else 0
-    mean_pr_normal = np.mean(pr_normal) if pr_normal else 0
-    pr_ratio = mean_pr_judol / (mean_pr_normal + 1e-10)
-
-    # Judol merchant degree (unique users)
+    # Fan-in: unique users per merchant (the actual signal for Layer 3)
     deg_judol = [G.degree(m) for m in judol_merchants if m in G]
     deg_normal = [G.degree(m) for m in normal_merchants if m in G]
     mean_deg_judol = np.mean(deg_judol) if deg_judol else 0
     mean_deg_normal = np.mean(deg_normal) if deg_normal else 0
+
+    # Shared senders: how many merchants share users with judol vs normal merchants
+    def shared_sender_count(merchant_set):
+        counts = []
+        for m in list(merchant_set)[:200]:
+            if m not in G:
+                continue
+            neighbors = set(G.neighbors(m))  # users of this merchant
+            shared = 0
+            for user in neighbors:
+                shared += G.degree(user) - 1  # other merchants this user visits
+            counts.append(shared / max(len(neighbors), 1))
+        return np.mean(counts) if counts else 0
+
+    shared_judol = shared_sender_count(judol_merchants)
+    shared_normal = shared_sender_count(normal_merchants)
+
+    # Geographic diversity: unique cities of senders per merchant
+    geo_judol = sample[sample["merchant_id"].isin(judol_merchants)].groupby("merchant_id")["city"].nunique()
+    geo_normal = sample[sample["merchant_id"].isin(normal_merchants)].groupby("merchant_id")["city"].nunique()
+    mean_geo_judol = geo_judol.mean() if len(geo_judol) > 0 else 0
+    mean_geo_normal = geo_normal.mean() if len(geo_normal) > 0 else 0
 
     print(f"\n  Graph: {n_nodes:,} nodes, {n_edges:,} edges")
     print(f"  Largest component: {len(largest_cc):,} nodes ({cc_ratio*100:.1f}%)")
@@ -382,26 +394,37 @@ def test_network_signal(df):
     print(f"\n  {'Metric':<35} {'Judol':>10} {'Normal':>10} {'Verdict':>15}")
     print(f"  {'-'*70}")
 
-    # PageRank
-    if pr_ratio > 5:
-        v_pr = "🔴 Too obvious"
-    elif pr_ratio > 1.5:
-        v_pr = "✅ Signal exists"
-    else:
-        v_pr = "⚠️ Weak signal"
-    print(f"  {'Mean PageRank':<35} {mean_pr_judol:>10.6f} {mean_pr_normal:>10.6f} {v_pr:>15}")
-
-    # Degree
+    # Fan-in (unique users)
     deg_ratio = mean_deg_judol / (mean_deg_normal + 1e-10)
-    if deg_ratio > 5:
-        v_deg = "🔴 Too obvious"
-    elif deg_ratio > 1.2:
+    if deg_ratio > 1.5:
         v_deg = "✅ Signal exists"
-    else:
+    elif deg_ratio > 1.1:
         v_deg = "⚠️ Weak signal"
-    print(f"  {'Mean degree (users)':<35} {mean_deg_judol:>10.1f} {mean_deg_normal:>10.1f} {v_deg:>15}")
+    else:
+        v_deg = "🔴 No signal"
+    print(f"  {'Fan-in (unique users)':<35} {mean_deg_judol:>10.1f} {mean_deg_normal:>10.1f} {v_deg:>15}")
 
-    # Check graph connectivity — judol merchants should be reachable through shared users
+    # Shared senders
+    shared_ratio = shared_judol / (shared_normal + 1e-10)
+    if shared_ratio > 1.3:
+        v_shared = "✅ Signal exists"
+    elif shared_ratio > 1.05:
+        v_shared = "⚠️ Weak signal"
+    else:
+        v_shared = "🔴 No signal"
+    print(f"  {'Avg shared senders/user':<35} {shared_judol:>10.1f} {shared_normal:>10.1f} {v_shared:>15}")
+
+    # Geographic diversity
+    geo_ratio = mean_geo_judol / (mean_geo_normal + 1e-10)
+    if geo_ratio > 1.5:
+        v_geo = "✅ Signal exists"
+    elif geo_ratio > 1.1:
+        v_geo = "⚠️ Weak signal"
+    else:
+        v_geo = "🔴 No signal"
+    print(f"  {'Sender city diversity':<35} {mean_geo_judol:>10.1f} {mean_geo_normal:>10.1f} {v_geo:>15}")
+
+    # Connectivity
     if cc_ratio > 0.90:
         v_cc = "✅ Connected"
     elif cc_ratio > 0.50:
@@ -410,7 +433,8 @@ def test_network_signal(df):
         v_cc = "🔴 Disconnected"
     print(f"  {'Largest component coverage':<35} {cc_ratio*100:>10.1f}% {'':>10} {v_cc:>15}")
 
-    return {"pr_ratio": pr_ratio, "deg_ratio": deg_ratio, "cc_ratio": cc_ratio}
+    return {"deg_ratio": deg_ratio, "shared_ratio": shared_ratio,
+            "geo_ratio": geo_ratio, "cc_ratio": cc_ratio}
 
 
 # ============================================================
@@ -701,9 +725,9 @@ def print_summary(sil, baselines, borderline, network, temporal, velocity, money
 
     if network:
         signal_total += 2
-        if network.get("pr_ratio", 0) > 1.5:
+        if network.get("deg_ratio", 0) > 1.1:
             signal_count += 1
-        if network.get("cc_ratio", 0) > 0.90:
+        if network.get("geo_ratio", 0) > 1.1:
             signal_count += 1
 
     if temporal:

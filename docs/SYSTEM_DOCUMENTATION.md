@@ -335,7 +335,7 @@ statistical methods grounded in domain knowledge.
 |-------|--------|-----------|-------------|-----------------|
 | 1 | User Behavior | Isolation Forest | Per-user | Anomalous user spending patterns |
 | 2 | Merchant Behavior | Isolation Forest | Per-merchant | Anomalous merchant receiving patterns |
-| 3 | Network Clustering | PageRank + IF | Per-merchant | Merchant rings sharing user pools |
+| 3 | Network Clustering | Fan-in + community detection + IF | Per-merchant | Merchant rings sharing user pools |
 | 4 | Temporal Pattern | 7 rule-based scores | Per-user | Judol timing signatures |
 | 5 | Velocity Delta | Z-score analysis | Per-merchant | Merchants deviating from population norms |
 | 6 | Money Flow | Directed graph | Per-merchant | Fan-in concentration and flow anomalies |
@@ -396,7 +396,7 @@ patterns with repeat customers.
 
 ### 5.4 Layer 3: Network Clustering
 
-**Technique:** Bipartite graph → PageRank + community detection → Isolation Forest
+**Technique:** Bipartite graph → fan-in analysis + community detection → Isolation Forest
 
 **Graph Construction:**
 1. Build **bipartite graph**: User ↔ Merchant (edges weighted by tx count + amount)
@@ -409,7 +409,7 @@ patterns with repeat customers.
 | Feature | What It Captures |
 |---------|-----------------|
 | Degree centrality | How connected the merchant is |
-| PageRank | Importance in the transaction network |
+| Sender geo diversity | Unique cities/provinces of senders |
 | Community ID | Which cluster the merchant belongs to |
 | Community size | How large its cluster is |
 | Shared merchant count | How many merchants share its users |
@@ -785,7 +785,7 @@ training or hyperparameter tuning).
 | **Data generation** | Python, Pandas, NumPy |
 | **GAN training** | SDV (CTGANSynthesizer), PyTorch, CUDA (H100 GPU) |
 | **ML models** | scikit-learn (IsolationForest, StandardScaler) |
-| **Graph analysis** | NetworkX (PageRank, community detection, centrality) |
+| **Graph analysis** | NetworkX (community detection, centrality, fan-in) |
 | **Training pipeline** | scikit-learn (StratifiedKFold, train_test_split, metrics) |
 | **Weight optimization** | NumPy (Dirichlet distribution) |
 | **API** | FastAPI (planned) |

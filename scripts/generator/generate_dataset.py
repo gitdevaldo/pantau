@@ -692,6 +692,16 @@ def generate_judol_transactions(n_judol_label1, judol_users, judol_merchants,
     total_planned = sum(u["judol_tx_count"] for u in judol_users)
     scale = n_judol_label1 / max(total_planned, 1)
 
+    # Judol merchant popularity: power-law — some merchants are big platforms
+    # attracting many users, others are smaller operations
+    judol_popularity = np.random.zipf(1.5, size=len(judol_merchants)).astype(float)
+    judol_popularity /= judol_popularity.sum()
+
+    # Hybrid merchant popularity (flatter — these are normal merchants used for judol)
+    hybrid_popularity = None
+    if hybrid_merchants:
+        hybrid_popularity = np.random.dirichlet(np.ones(len(hybrid_merchants)) * 2.0)
+
     for user in judol_users:
         planned_judol = max(1, int(user["judol_tx_count"] * scale))
         normal_ratio = user.get("normal_ratio", 0.50)
@@ -699,23 +709,25 @@ def generate_judol_transactions(n_judol_label1, judol_users, judol_merchants,
 
         jtype = user["judol_type"]
 
-        # Pick judol merchants for this user
+        # Pick judol merchants — weighted by popularity (users flock to popular platforms)
         if jtype == "smurfer":
             n_jm = user.get("smurfing_merchants", 4)
-            user_judol_merchants = random.sample(
-                judol_merchants, min(n_jm, len(judol_merchants)))
-            # Also use some hybrid merchants
+            idx = np.random.choice(len(judol_merchants), size=min(n_jm, len(judol_merchants)),
+                                   replace=False, p=judol_popularity)
+            user_judol_merchants = [judol_merchants[i] for i in idx]
             if hybrid_merchants:
                 n_hm = random.randint(1, 2)
-                user_judol_merchants += random.sample(
-                    hybrid_merchants, min(n_hm, len(hybrid_merchants)))
+                h_idx = np.random.choice(len(hybrid_merchants), size=min(n_hm, len(hybrid_merchants)),
+                                          replace=False, p=hybrid_popularity)
+                user_judol_merchants += [hybrid_merchants[i] for i in h_idx]
         else:
-            n_jm = random.randint(1, 4)
-            user_judol_merchants = random.sample(
-                judol_merchants, min(n_jm, len(judol_merchants)))
-            # Some users also deposit via hybrid merchants
+            n_jm = random.randint(1, 3)
+            idx = np.random.choice(len(judol_merchants), size=min(n_jm, len(judol_merchants)),
+                                   replace=False, p=judol_popularity)
+            user_judol_merchants = [judol_merchants[i] for i in idx]
             if hybrid_merchants and random.random() < 0.45:
-                user_judol_merchants.append(random.choice(hybrid_merchants))
+                h_idx = np.random.choice(len(hybrid_merchants), p=hybrid_popularity)
+                user_judol_merchants.append(hybrid_merchants[h_idx])
 
         # Generate judol transactions (label=1)
         for j in range(planned_judol):
@@ -724,7 +736,7 @@ def generate_judol_transactions(n_judol_label1, judol_users, judol_merchants,
 
             # Timing: 24/7 with night peak
             if merchant.get("category") == "togel":
-                if random.random() < 0.5:
+                if random.random() < 0.7:
                     ts = gen_togel_timestamp(start, end)
                 else:
                     ts = gen_timestamp(start, end, JUDOL_HOUR_WEIGHTS,

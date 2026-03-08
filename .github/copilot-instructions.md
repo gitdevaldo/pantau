@@ -132,7 +132,7 @@ Layers 4-6 are rule/statistical-based (save/load thresholds only).
 |-------|--------|-----------|-------------|
 | 1 | `ml/models/user_behavior.py` | IsolationForest, 20 features | per-user |
 | 2 | `ml/models/merchant_behavior.py` | IsolationForest, 20 features | per-merchant |
-| 3 | `ml/models/network_cluster.py` | PageRank + community detection + IF | per-merchant |
+| 3 | `ml/models/network_cluster.py` | Fan-in + community detection + IF | per-merchant |
 | 4 | `ml/models/temporal_pattern.py` | 7 rule-based scores (judol timing) | per-user |
 | 5 | `ml/models/velocity_delta.py` | Cross-merchant z-scores | per-merchant |
 | 6 | `ml/models/money_flow.py` | Directed graph fan-in analysis | per-merchant |
@@ -196,7 +196,7 @@ Real data in `data/geolocation/`: 38 provinces (`provinsi.csv`), 514 cities
 ### Dependencies
 
 Core: `pandas`, `numpy`, `scikit-learn` (IsolationForest, StandardScaler, train_test_split, metrics).
-Graph: `networkx` (PageRank, community detection, centrality).
+Graph: `networkx` (community detection, centrality, fan-in analysis).
 GAN: `sdv` (CTGANSynthesizer, TVAESynthesizer) — only needed for `scripts/train_gan.py`.
 
 ### File Organization

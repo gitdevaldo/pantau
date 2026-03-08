@@ -4,8 +4,8 @@ Pantau ML — Layer 3: Network Clustering & Ring Detection
 Builds a user→merchant transaction graph and analyzes network topology
 to detect organized judol rings and suspicious merchant clusters.
 
-Features per merchant (from PRD Section 7.4):
-- Degree centrality and PageRank
+Features per merchant:
+- Degree centrality and fan-in (unique senders)
 - Shared sender analysis between merchants
 - Community/cluster detection
 - Hub and ring scoring
@@ -94,9 +94,6 @@ def engineer_network_features(df: pd.DataFrame) -> pd.DataFrame:
     print("  [Network] Computing centrality...")
     degree_cent = nx.degree_centrality(G)
 
-    # PageRank (fast, O(V+E) per iteration)
-    pagerank = nx.pagerank(G, max_iter=50, tol=1e-4)
-
     # --- Merchant projection metrics ---
     mg_degree = dict(MG.degree())
     mg_clustering = nx.clustering(MG) if MG.number_of_edges() > 0 else {}
@@ -162,7 +159,6 @@ def engineer_network_features(df: pd.DataFrame) -> pd.DataFrame:
         features.append({
             "merchant_id": m_id,
             "network_degree_centrality": degree_cent.get(m_id, 0),
-            "network_pagerank": pagerank.get(m_id, 0),
             "network_unique_senders": n_senders,
             "network_unique_sender_cities": g.get("unique_sender_cities", 0),
             "network_unique_sender_provinces": g.get("unique_sender_provinces", 0),
@@ -179,7 +175,7 @@ def engineer_network_features(df: pd.DataFrame) -> pd.DataFrame:
 
 
 FEATURE_COLUMNS = [
-    "network_degree_centrality", "network_pagerank",
+    "network_degree_centrality",
     "network_unique_senders", "network_unique_sender_cities",
     "network_unique_sender_provinces", "network_sender_concentration",
     "network_shared_merchant_count", "network_total_shared_users",
