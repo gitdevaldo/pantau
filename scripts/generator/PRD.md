@@ -39,7 +39,7 @@ from **multi-feature patterns**, not from any single feature.
 | Borderline ratio (N1) | 7.2% | 20-30% |
 | Transaction-level LR F1 | 0.72 | 0.55-0.70 |
 | Full ML pipeline combined F1 | 0.9997 | 0.75-0.90 |
-| Generation time | ~3 min | < 10 min |
+| Generation time | ~3 min | < 30 min |
 
 ---
 
@@ -308,14 +308,14 @@ has realistic decision boundary difficulty.
 
 | Parameter | Value |
 |-----------|-------|
-| Total transactions | 500,000 |
-| Fraud rate | 1-5% (5,000-25,000 judol / 475,000-495,000 normal) |
+| Total transactions | 2,000,000 |
+| Fraud rate | 1-5% (20,000-100,000 judol, configurable, default 3%) |
 | Date range | 90 days |
-| Normal merchants | 5,000 |
-| Judol merchants | ~150 (scales with fraud rate) |
-| Hybrid merchants | ~550 (10% of total, new) |
-| Normal users | 50,000 |
-| Judol users | ~600 (scales with fraud rate) |
+| Normal merchants | 20,000 |
+| Judol merchants | ~600 (scales with fraud rate) |
+| Hybrid merchants | ~2,200 (10% of total, new) |
+| Normal users | 200,000 |
+| Judol users | ~2,400 (scales with fraud rate) |
 | Output schema | Same 15 columns as v1 |
 | Seed | 42 (reproducible) |
 
@@ -506,7 +506,7 @@ tx_hour, tx_day_of_week, label`
 
 After generating v2 dataset, verify:
 1. [ ] `python3 scripts/audit/dataset_quality.py --input data/generated/parametric/pantau_dataset.csv` — all metrics in target range
-2. [ ] Total row count = 500,000
+2. [ ] Total row count = 2,000,000
 3. [ ] Fraud rate = 1-5% (configurable, default 3%)
 4. [ ] No NaN values in any column
 5. [ ] All merchant_ids are valid 15-char NMID format
