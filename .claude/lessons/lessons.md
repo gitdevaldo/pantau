@@ -34,3 +34,11 @@
 - **Problem:** User had to wait 17 hours for something that could run in 3.5 hours. Only added parallelism after user asked why it's slow.
 - **Should Be:** When writing code that processes independent items (folds, batches, files), default to parallel execution. Think about performance from the start.
 - **Goal:** Always consider parallelism when designing loops over independent work units.
+
+---
+
+## L005: Verify push with git fetch after every push
+- **Case:** Said "pushed" but `git status` showed "ahead of origin by 3 commits" — caused confusion.
+- **Problem:** Used explicit push URL which doesn't update local remote tracking refs. `git status` then shows stale info.
+- **Should Be:** After every push, run `git fetch origin` so `origin/main` ref is current, then verify with `git log --oneline origin/main -1`. Or use `git push origin main` with proper remote URL set.
+- **Goal:** After saying "pushed", the state must be verifiable. No ambiguity.
