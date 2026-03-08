@@ -382,8 +382,8 @@ def test_network_signal(df):
     shared_normal = shared_sender_count(normal_merchants)
 
     # Geographic diversity: unique cities of senders per merchant
-    geo_judol = sample[sample["merchant_id"].isin(judol_merchants)].groupby("merchant_id")["city"].nunique()
-    geo_normal = sample[sample["merchant_id"].isin(normal_merchants)].groupby("merchant_id")["city"].nunique()
+    geo_judol = sample[sample["merchant_id"].isin(judol_merchants)].groupby("merchant_id")["user_city"].nunique()
+    geo_normal = sample[sample["merchant_id"].isin(normal_merchants)].groupby("merchant_id")["user_city"].nunique()
     mean_geo_judol = geo_judol.mean() if len(geo_judol) > 0 else 0
     mean_geo_normal = geo_normal.mean() if len(geo_normal) > 0 else 0
 
