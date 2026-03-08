@@ -122,3 +122,18 @@
 3. Example: committing → load `git-commit` + `conventional-commit`. Writing PRD → load `prd`.
 
 **Origin**: User explicitly requested this system after repeated mistakes that lessons would have prevented.
+
+---
+
+## Principle 8: Validate Hardcoded Values Against All Datasets Before Training
+
+**Rule**: When writing training code with hardcoded hyperparameter grids, verify that the values make sense for ALL datasets the code will run on — not just the one you're currently looking at. Auto-derive data-dependent values from the dataset itself.
+
+**Why**: Hardcoding contamination grid as `[0.10, 0.15, 0.20]` worked for GAN data (21.6% fraud) but is wrong for parametric data (15% fraud). The user ran parametric training on another server with these wrong values — wasted hours of compute. This should have been caught when the grid was first written.
+
+**How to verify**:
+1. Before hardcoding any data-dependent value, ask: "Does this hold for parametric AND GAN AND future datasets?"
+2. If the answer is no → derive it from the data (e.g., `fraud_rate = df["label"].mean()`).
+3. Before giving the user a training command, verify the code's assumptions match the target dataset.
+
+**Origin**: Contamination grid was hardcoded at `[0.10, 0.15, 0.20]`. User ran parametric training (15% fraud) on another server. Only discovered the mismatch when user asked about it — after training was already running.

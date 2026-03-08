@@ -49,7 +49,8 @@ LAYER_KEYS = ["user", "merchant", "network", "temporal", "velocity", "flow"]
 # HYPERPARAMETER GRID
 # ============================================================
 
-# IF contamination for layers 1-3
+# IF contamination for layers 1-3 — auto-derived from dataset fraud rate in main()
+# Default fallback only; overridden by build_contamination_grid()
 CONTAMINATION_GRID = [0.10, 0.15, 0.20]
 
 # Per-layer threshold for rule-based layers 4-6
@@ -60,6 +61,17 @@ COMBINED_THRESHOLD_GRID = [30, 35, 40, 45]
 
 # Number of random weight vectors to generate (Dirichlet distribution, all sum to 1.0)
 N_WEIGHT_SAMPLES = 50
+
+
+def build_contamination_grid(df: pd.DataFrame) -> list:
+    """Auto-derive contamination grid from actual fraud rate in dataset."""
+    fraud_rate = df["label"].mean()
+    grid = sorted(set([
+        round(fraud_rate * 0.5, 3),
+        round(fraud_rate, 3),
+        round(fraud_rate * 1.5, 3),
+    ]))
+    return grid
 
 
 def generate_weight_samples(n: int = N_WEIGHT_SAMPLES) -> list:
@@ -525,6 +537,11 @@ def main():
     # Step 1: Load
     df = load_dataset(args.input, sample=args.sample)
 
+    # Auto-derive contamination grid from actual fraud rate
+    global CONTAMINATION_GRID
+    CONTAMINATION_GRID = build_contamination_grid(df)
+    print(f"  Fraud rate: {df['label'].mean()*100:.1f}% → contamination grid: {CONTAMINATION_GRID}")
+
     # Step 2: 80/20 split — test set is LOCKED
     df_train, df_test = split_dataset(df, test_size=0.20)
 
@@ -535,7 +552,7 @@ def main():
         best_params = tune_result["best_params"]
     else:
         best_params = {
-            "contamination": 0.15,
+            "contamination": round(df["label"].mean(), 3),
             "layer_threshold": 40.0,
             "combined_threshold": 40,
             "weights": scoring.WEIGHTS.copy(),
