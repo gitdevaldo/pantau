@@ -270,7 +270,7 @@ def main():
             metadata,
             epochs=args.epochs,
             batch_size=args.batch_size,
-            cuda=True,
+            enable_gpu=True,
             verbose=True,
         )
     else:
@@ -278,7 +278,7 @@ def main():
             metadata,
             epochs=args.epochs,
             batch_size=args.batch_size,
-            cuda=True,
+            enable_gpu=True,
         )
 
     print(f"  Initialized {args.model.upper()} synthesizer")
