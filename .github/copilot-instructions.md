@@ -27,6 +27,61 @@ Built for **PIDI - DIGDAYA X Hackathon 2026** (Bank Indonesia). Deadline: March 
    If a layer or method cannot meet these on held-out test data, it needs redesign, not
    threshold tweaking.
 
+## Agent Behaviour
+
+### 1. No Lazy Fixes
+- Always find and fix root causes. Never apply temporary workarounds or band-aids.
+- When fixing a file, check all other files that import from or depend on the changed code. Trace the full impact.
+- Senior developer standards: would a staff engineer approve this change?
+
+### 2. Skills and Lessons — Mandatory Pre-Task Reads
+- **Before every task**, read `.claude/task/lessons.md` first. These are hard-won rules from
+  past mistakes. Violating any lesson is a blocking issue.
+- **Before every message and every to-do item**, scan `.claude/skills/` and load the skill
+  files that match the current task. This is NOT optional — skills contain domain-specific
+  procedures. Skipping skills leads to incorrect approaches.
+  - At the start of each message: identify which skills apply → read their SKILL.md → follow their procedures.
+  - At the start of each to-do item: re-evaluate if additional skills are needed.
+  - Example: committing → load `git-commit` + `conventional-commit`. Writing PRD → load `prd`.
+    Refactoring → load `refactor`. Creating issues → load `github-issues`.
+- Lessons define principles and verification steps that override default assumptions.
+
+### 3. Workflow Orchestration
+- **Plan Mode**: Enter plan mode for any non-trivial task (3+ steps or architectural decisions).
+  Write plan with checkable items. If something goes sideways, STOP and re-plan immediately.
+- **Subagent Strategy**: Use subagents for research, exploration, and parallel analysis.
+  One task per subagent. Keep main context window clean.
+- **Self-Improvement Loop**: After ANY correction from the user, update `.claude/task/lessons.md`
+  with the pattern and a rule to prevent recurrence. Review lessons at session start.
+- **Verification Before Done**: Never mark a task complete without proving it works.
+  Run the code, check for errors, demonstrate correctness.
+- **Demand Elegance (Balanced)**: For non-trivial changes, pause and consider if there's
+  a more elegant approach. Skip for simple, obvious fixes — don't over-engineer.
+- **Autonomous Bug Fixing**: When given a bug report, just fix it. Point at logs/errors,
+  then resolve. Zero hand-holding required from the user.
+
+### 4. Task Management
+1. Plan with checkable items for non-trivial tasks
+2. Mark items complete as you go
+3. High-level summary at each step
+4. Update `.claude/task/lessons.md` after corrections
+
+### 5. Git Discipline
+- **Commit After Every Change**: After every change — even a single-line fix — immediately
+  stage, commit, and push. No batching multiple unrelated changes.
+- **Verify Push**: After every push, `git fetch origin` and verify `origin/main` matches HEAD.
+- **Use Git Skills**: Before committing, follow relevant Git skills in `.claude/skills/`
+  (e.g., `git-commit`, `conventional-commit`).
+- **Remote**: `origin` → `https://github.com/gitdevaldo/pantau.git`, branch `main`.
+
+### 6. Core Principles
+- **Simplicity First**: Make every change as simple as possible. Minimal code impact.
+- **No Laziness**: Find root causes. No temporary fixes.
+- **Minimal Impact**: Changes touch only what's necessary. Avoid introducing bugs.
+- **Full Traceability**: When changing shared code, verify all consumers still work.
+- **Think Before Responding**: Re-read user context. Identify all assumptions. Get it right
+  the first time. Maximum 1 correction per task.
+
 ## Commands
 
 ```bash
