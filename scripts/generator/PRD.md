@@ -73,9 +73,11 @@ transactions so that merchant-level classification requires pattern analysis, no
 shift workers) so that time-of-day alone cannot classify fraud.
 - **AC**: ≥ 25% of normal transactions occur between 20:00-06:00.
 
-**US-5**: As an ML engineer, I want daytime judol transactions (lunch break gambling, afternoon
-mobile sessions) so that the model cannot rely on nighttime as a judol signal.
-- **AC**: ≥ 30% of judol transactions occur between 08:00-18:00.
+**US-5**: As an ML engineer, I want judol transactions spread across ALL hours (with a
+nighttime peak) so that the model cannot rely on time-of-day alone to classify fraud.
+- **AC**: Judol transactions occur every hour of the day. Nighttime (20:00-04:00) is the
+  peak (~40-50% of judol volume), but the remaining 50-60% is distributed across all other
+  hours. No hour should have zero judol transactions.
 
 **US-6**: As an ML engineer, I want diverse user behavioral profiles (casual, regular, heavy
 gamblers; shift workers, drivers, students) so that no single user archetype dominates.
@@ -194,11 +196,15 @@ has realistic decision boundary difficulty.
 
 ### 3.2 Judol Transactions That Look Normal
 
-#### Case J1: Daytime Gambling (Lunch Break)
-- **Scenario**: Office worker places bets during lunch break at 12:00-13:00.
-- **Why it looks normal**: Daytime transaction, work hours.
-- **Distinguishing features**: Still goes to judol merchant, round amount, may be togel-timed.
-- **Generator requirement**: 30-40% of judol transactions occur between 08:00-18:00.
+#### Case J1: Judol Happens All Day, Every Day
+- **Scenario**: Judol is not limited to nighttime or break times. People gamble at 9am, 2pm,
+  6pm, midnight — literally any hour. The peak is at night (20:00-02:00) but gambling happens
+  around the clock.
+- **Why it looks normal**: Daytime judol transactions blend in with regular commerce traffic.
+- **Distinguishing features**: Still goes to judol merchant, amount ≥ 25K, may be round.
+- **Generator requirement**: Judol transactions must be distributed across ALL 24 hours.
+  Nighttime (20:00-04:00) gets ~40-50% of volume (the peak), but every other hour also has
+  judol activity. Do NOT tie judol to specific time slots like "lunch break" or "after work."
 
 #### Case J2: Judol Player Also Buys Groceries
 - **Scenario**: A judol user also shops at Alfamart, eats at restaurants, buys fuel.
@@ -394,7 +400,7 @@ life + judol activity. The judol signal hides within the noise of normal behavio
 | Parameter | v1 | v2 |
 |-----------|-----|-----|
 | Normal nighttime (20:00-06:00) % | ~8% | **22-30%** (24h stores, shift workers, online, drivers) |
-| Judol daytime (08:00-18:00) % | ~10% | **30-40%** (lunch break, afternoon, togel draws at 13:00 & 16:00) |
+| Judol daytime (08:00-18:00) % | ~10% | **50-60%** spread across all non-peak hours (judol is 24/7, peak at night but happens every hour) |
 | Normal payday boost | +30% | **+80-100%** (normal people also spend heavily on payday) |
 | Judol payday boost | +50% | **+60-80%** (keep slightly higher than normal, but not dramatically) |
 
