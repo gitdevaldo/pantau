@@ -12,6 +12,7 @@ Usage:
     python3 -m ml.train [--input path/to/dataset.csv] [--sample N] [--tag name]
     python3 -m ml.train --no-tune   # skip K-Fold, use defaults
     python3 -m ml.train --folds 3   # fewer folds (faster)
+    python3 -m ml.train --n-jobs 5  # parallel folds (default: -1 = all cores)
 """
 
 import argparse
@@ -23,6 +24,7 @@ from datetime import datetime
 
 import numpy as np
 import pandas as pd
+from joblib import Parallel, delayed
 from sklearn.model_selection import train_test_split, StratifiedKFold
 
 # Add project root to path
@@ -166,11 +168,42 @@ def score_and_evaluate(df: pd.DataFrame, results: dict, weights: dict,
 # K-FOLD CROSS-VALIDATION ON TRAIN POOL
 # ============================================================
 
-def kfold_tune(df_train: pd.DataFrame, n_folds: int = 5) -> dict:
+def _run_single_fold(df_train: pd.DataFrame, train_idx, val_idx,
+                     contam: float, layer_thresh: float,
+                     score_grid: list, fold_idx: int) -> dict:
+    """Train one fold and sweep all scoring combos. Designed for joblib parallelism."""
+    df_fold_train = df_train.iloc[train_idx].reset_index(drop=True)
+    df_fold_val = df_train.iloc[val_idx].reset_index(drop=True)
+
+    # Phase 1: Train layers (expensive)
+    results = train_layers(
+        df_fold_train,
+        contamination=contam,
+        layer_threshold=layer_thresh,
+        verbose=False,
+    )
+
+    # Phase 2: Sweep scoring params (cheap — no retraining)
+    fold_scores = {}
+    for si, (weights, combo_thresh) in enumerate(score_grid):
+        _, metrics = score_and_evaluate(
+            df_fold_val, results,
+            weights=weights,
+            threshold=combo_thresh,
+        )
+        fold_scores[si] = metrics["f1_score"]
+
+    print(f"    Fold {fold_idx+1} done", flush=True)
+    return fold_scores
+
+
+def kfold_tune(df_train: pd.DataFrame, n_folds: int = 5, n_jobs: int = -1) -> dict:
     """
     Two-phase grid search with K-Fold CV on the training pool.
     Phase 1: Retrain layers for each (contamination, layer_threshold) combo per fold.
     Phase 2: For each trained fold, sweep Dirichlet weight samples × combined thresholds (no retrain).
+
+    Folds within each combo run in parallel using joblib (n_jobs=-1 = all cores).
     """
     train_grid = [(c, lt) for c in CONTAMINATION_GRID for lt in LAYER_THRESHOLD_GRID]
     weight_samples = generate_weight_samples(N_WEIGHT_SAMPLES)
@@ -180,7 +213,8 @@ def kfold_tune(df_train: pd.DataFrame, n_folds: int = 5) -> dict:
     total_retrains = n_train_combos * n_folds
     total_evals = total_retrains * n_score_combos
 
-    print(f"\n[3/6] K-Fold tuning ({n_folds} folds):")
+    actual_jobs = n_jobs if n_jobs > 0 else os.cpu_count()
+    print(f"\n[3/6] K-Fold tuning ({n_folds} folds, {actual_jobs} parallel jobs):")
     print(f"  Phase 1: {n_train_combos} train combos × {n_folds} folds = {total_retrains} retrains")
     print(f"  Phase 2: {N_WEIGHT_SAMPLES} Dirichlet weights × {len(COMBINED_THRESHOLD_GRID)} thresholds "
           f"= {n_score_combos} score combos per retrain")
@@ -197,32 +231,22 @@ def kfold_tune(df_train: pd.DataFrame, n_folds: int = 5) -> dict:
         print(f"\n  Train combo {ti+1}/{n_train_combos}: "
               f"contamination={contam}, layer_threshold={layer_thresh}")
 
-        for fold_idx, (train_idx, val_idx) in enumerate(fold_indices):
-            df_fold_train = df_train.iloc[train_idx].reset_index(drop=True)
-            df_fold_val = df_train.iloc[val_idx].reset_index(drop=True)
-
-            # Phase 1: Train layers (expensive)
-            results = train_layers(
-                df_fold_train,
-                contamination=contam,
-                layer_threshold=layer_thresh,
-                verbose=False,
+        # Run all folds in parallel
+        fold_results = Parallel(n_jobs=n_jobs, prefer="processes")(
+            delayed(_run_single_fold)(
+                df_train, train_idx, val_idx,
+                contam, layer_thresh, score_grid, fold_idx
             )
+            for fold_idx, (train_idx, val_idx) in enumerate(fold_indices)
+        )
 
-            # Phase 2: Sweep scoring params (cheap — no retraining)
-            for si, (weights, combo_thresh) in enumerate(score_grid):
-                _, metrics = score_and_evaluate(
-                    df_fold_val, results,
-                    weights=weights,
-                    threshold=combo_thresh,
-                )
+        # Aggregate fold results
+        for fold_scores in fold_results:
+            for si, f1 in fold_scores.items():
                 key = (ti, si)
                 if key not in all_results:
                     all_results[key] = []
-                all_results[key].append(metrics["f1_score"])
-
-            print(f"    Fold {fold_idx+1}/{n_folds} done", end=" ", flush=True)
-        print()
+                all_results[key].append(f1)
 
     # Find best combo by average F1 across folds
     best_key = max(all_results, key=lambda k: np.mean(all_results[k]))
@@ -473,6 +497,8 @@ def main():
                         help="Skip saving models")
     parser.add_argument("--no-tune", action="store_true",
                         help="Skip K-Fold tuning, use default params")
+    parser.add_argument("--n-jobs", "-j", type=int, default=-1,
+                        help="Parallel jobs for K-Fold CV (-1 = all cores, default: -1)")
     args = parser.parse_args()
 
     # Fallback to parametric dataset if GAN not available
@@ -505,7 +531,7 @@ def main():
     # Step 3: K-Fold tuning on train pool only
     tune_result = None
     if not args.no_tune:
-        tune_result = kfold_tune(df_train, n_folds=args.folds)
+        tune_result = kfold_tune(df_train, n_folds=args.folds, n_jobs=args.n_jobs)
         best_params = tune_result["best_params"]
     else:
         best_params = {
