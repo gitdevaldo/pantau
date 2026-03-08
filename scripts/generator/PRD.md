@@ -216,10 +216,10 @@ has realistic decision boundary difficulty.
   fall below 25K; judol never does.
 - **Distinguishing features**: The floor alone is not diagnostic (most normal transactions
   are also ≥ 25K), but the ABSENCE of sub-25K transactions for a user/merchant is a soft signal.
-- **Generator requirement**: All judol transactions must have amount ≥ Rp 25,000. Judol
-  amount distribution starts at 25K: {25K, 50K, 100K, 200K, 500K} as primary denominations.
-  Normal transactions should frequently include amounts below 25K (parking, small food, snacks)
-  to create natural contrast.
+- **Generator requirement**: All judol transactions must have amount ≥ Rp 25,000. Deposits
+  are free denomination (any amount ≥ 25K), though users naturally gravitate toward round
+  numbers. Normal transactions should frequently include amounts below 25K (parking 5K,
+  snacks 8K, coffee 15K) to create natural contrast.
 
 #### Case J4: Smart Operator Using Non-Round Amounts
 - **Scenario**: Judol operator accepts deposits of Rp 51,000 or Rp 99,500 instead of round numbers.
