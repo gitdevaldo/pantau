@@ -56,18 +56,28 @@ LAYER_THRESHOLD_GRID = [30.0, 40.0, 50.0]
 # Combined scoring threshold
 COMBINED_THRESHOLD_GRID = [30, 35, 40, 45]
 
-# Scoring weight presets (sum to 1.0, research-informed starting points)
-WEIGHT_PRESETS = [
-    {"user": 0.10, "merchant": 0.15, "network": 0.20, "temporal": 0.10, "velocity": 0.15, "flow": 0.30},
-    {"user": 0.15, "merchant": 0.15, "network": 0.15, "temporal": 0.15, "velocity": 0.15, "flow": 0.25},
-    {"user": 0.05, "merchant": 0.10, "network": 0.15, "temporal": 0.05, "velocity": 0.30, "flow": 0.35},
-]
+# Number of random weight vectors to generate (Dirichlet distribution, all sum to 1.0)
+N_WEIGHT_SAMPLES = 50
+
+
+def generate_weight_samples(n: int = N_WEIGHT_SAMPLES) -> list:
+    """Generate random weight vectors using Dirichlet distribution."""
+    rng = np.random.RandomState(SEED)
+    keys = LAYER_KEYS
+    samples = []
+    for _ in range(n):
+        raw = rng.dirichlet(np.ones(len(keys)))
+        raw = np.round(raw, 2)
+        raw[-1] = round(1.0 - raw[:-1].sum(), 2)
+        samples.append(dict(zip(keys, raw)))
+    return samples
+
 
 # Two-phase grid:
 #   Phase 1 (expensive): contamination × layer_threshold = 9 combos → retrain per fold
-#   Phase 2 (cheap):     weight_presets × combined_threshold = 12 combos → score only
+#   Phase 2 (cheap):     50 weight samples × 4 combined_thresholds = 200 combos → score only
 # Total retrains: 9 × 5 folds = 45
-# Total scoring evals: 45 × 12 = 540 (fast, no retraining)
+# Total scoring evals: 45 × 200 = 9,000 (fast, no retraining)
 
 
 
@@ -160,10 +170,11 @@ def kfold_tune(df_train: pd.DataFrame, n_folds: int = 5) -> dict:
     """
     Two-phase grid search with K-Fold CV on the training pool.
     Phase 1: Retrain layers for each (contamination, layer_threshold) combo per fold.
-    Phase 2: For each trained fold, sweep weight presets × combined thresholds (no retrain).
+    Phase 2: For each trained fold, sweep Dirichlet weight samples × combined thresholds (no retrain).
     """
     train_grid = [(c, lt) for c in CONTAMINATION_GRID for lt in LAYER_THRESHOLD_GRID]
-    score_grid = [(w, ct) for w in WEIGHT_PRESETS for ct in COMBINED_THRESHOLD_GRID]
+    weight_samples = generate_weight_samples(N_WEIGHT_SAMPLES)
+    score_grid = [(w, ct) for w in weight_samples for ct in COMBINED_THRESHOLD_GRID]
     n_train_combos = len(train_grid)
     n_score_combos = len(score_grid)
     total_retrains = n_train_combos * n_folds
@@ -171,7 +182,9 @@ def kfold_tune(df_train: pd.DataFrame, n_folds: int = 5) -> dict:
 
     print(f"\n[3/6] K-Fold tuning ({n_folds} folds):")
     print(f"  Phase 1: {n_train_combos} train combos × {n_folds} folds = {total_retrains} retrains")
-    print(f"  Phase 2: {total_retrains} × {n_score_combos} score combos = {total_evals} scoring evals")
+    print(f"  Phase 2: {N_WEIGHT_SAMPLES} Dirichlet weights × {len(COMBINED_THRESHOLD_GRID)} thresholds "
+          f"= {n_score_combos} score combos per retrain")
+    print(f"  Total scoring evals: {total_evals:,}")
 
     skf = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=SEED)
     fold_indices = list(skf.split(df_train, df_train["label"]))
