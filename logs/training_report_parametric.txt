@@ -1,28 +1,49 @@
 ======================================================================
   PANTAU — Training Report
   Dataset: parametric (data/generated/parametric/pantau_dataset.csv)
-  Date: 2026-03-07 21:22:31
+  Date: 2026-03-08 15:30:43
+  Method: 5-Fold CV on 80% train pool, final eval on 20% locked test set
+  Grid: 1800 combos × 5 folds = 9000 evaluations
 ======================================================================
 
   Layer                      Precision     Recall         F1     Time
   -----------------------------------------------------------------
-  1. User Behavior              0.6180     0.2396     0.3453   513.9s
-  2. Merchant Behavior          0.3203     0.2572     0.2853   855.3s
-  3. Network Clustering         0.6735     0.5014     0.5748   376.4s
-  4. Temporal Pattern           0.9929     0.2255     0.3676   305.7s
-  5. Velocity Delta             0.0577     0.0098     0.0168     4.5s
-  6. Money Flow                 0.6495     0.9491     0.7713   375.9s
+  1. User Behavior              0.5809     0.1229     0.2029   287.4s
+  2. Merchant Behavior          1.0000     0.8782     0.9352    21.1s
+  3. Network Clustering         0.8735     0.7671     0.8168    81.6s
+  4. Temporal Pattern           0.8864     0.3650     0.5171   169.7s
+  5. Velocity Delta             1.0000     1.0000     1.0000     0.7s
+  6. Money Flow                 0.0156     0.1368     0.0280    14.4s
   -----------------------------------------------------------------
-  COMBINED                      0.1632     0.7746     0.2696  2431.7s
+  COMBINED                      0.9995     1.0000     0.9997   574.9s
 
-  Avg score (normal): 49.1
-  Avg score (judol):  60.2
+  AUC-ROC:    1.0000
+  PR-AUC:     1.0000
+
+  Avg score (normal): 13.4
+  Avg score (judol):  71.6
 
   Risk distribution:
-    Critical: 5,561
-    High Risk: 256,329
-    Normal: 144,153
-    Suspicious: 93,957
+    Critical: 2,167
+    High Risk: 12,053
+    Normal: 84,992
+    Suspicious: 788
 
-  Total time: 2438.9s
+  --- K-Fold Tuning Results ---
+  Retrains: 45 | Scoring evals: 9000
+  Best combo: #103 / 1800
+  CV avg F1: 0.9998 ± 0.0001
+  Per-fold F1: ['0.9997', '0.9998', '0.9998', '0.9999', '0.9998']
+  contamination: 0.075
+  layer_threshold: 30.0
+  combined_threshold: 40
+  weights:
+    user: 0.30
+    merchant: 0.03
+    network: 0.02
+    temporal: 0.08
+    velocity: 0.53
+    flow: 0.04
+
+  Total time: 6344.8s
 ======================================================================
