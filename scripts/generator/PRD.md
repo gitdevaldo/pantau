@@ -289,13 +289,13 @@ has realistic decision boundary difficulty.
 | Parameter | Value |
 |-----------|-------|
 | Total transactions | 500,000 |
-| Fraud rate | 15% (75,000 judol / 425,000 normal) |
+| Fraud rate | 1-5% (5,000-25,000 judol / 475,000-495,000 normal) |
 | Date range | 90 days |
 | Normal merchants | 5,000 |
-| Judol merchants | 500 |
+| Judol merchants | ~150 (scales with fraud rate) |
 | Hybrid merchants | ~550 (10% of total, new) |
 | Normal users | 50,000 |
-| Judol users | 2,000 |
+| Judol users | ~600 (scales with fraud rate) |
 | Output schema | Same 15 columns as v1 |
 | Seed | 42 (reproducible) |
 
@@ -480,13 +480,14 @@ tx_hour, tx_day_of_week, label`
 | Hybrid merchants dominate false positives | Medium | Keep hybrid at 10%, tune normal/judol transaction ratio |
 | Smurfing pattern creates unrealistic network patterns | Low | Limit smurfing to 10% of heavy users, cap at 3-5 merchants |
 | Label imbalance within judol users (most tx are label=0) | High | Track per-user judol transaction counts; ensure enough judol-labeled tx remain |
+| Low fraud rate (1-5%) makes learning harder | Medium | Expected — this is realistic. Use class-weighted training in ML pipeline. |
 
 ### Post-Generation Checklist
 
 After generating v2 dataset, verify:
 1. [ ] `python3 scripts/audit/dataset_quality.py --input data/generated/parametric/pantau_dataset.csv` — all metrics in target range
 2. [ ] Total row count = 500,000
-3. [ ] Fraud rate = 15% (±0.5%)
+3. [ ] Fraud rate = 1-5% (configurable, default 3%)
 4. [ ] No NaN values in any column
 5. [ ] All merchant_ids are valid 15-char NMID format
 6. [ ] `is_round_amount` correctly computed
@@ -503,6 +504,7 @@ These are the current v1 parameters that will be replaced:
 
 | Parameter | v1 Value | Notes |
 |-----------|----------|-------|
+| Fraud rate | 15% | Real-world is 1-5%, 15% is unrealistically high |
 | `NORMAL_PARAMS["round_amount_rate"]` | 0.12 | Too low, causes IV=4.43 |
 | `JUDOL_MERCHANT_PARAMS["round_amount_rate"]` | 0.91 | Too high, trivially separable |
 | `JUDOL_USER_PARAMS["round_amount_rate"]` | 0.88 | Too high |
