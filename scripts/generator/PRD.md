@@ -208,7 +208,20 @@ has realistic decision boundary difficulty.
 - **Generator requirement**: 40-60% of a judol user's total transactions should be at normal
   merchants with normal patterns.
 
-#### Case J3: Smart Operator Using Non-Round Amounts
+#### Case J3: Minimum Deposit Threshold (Rp 25,000)
+- **Scenario**: All judol platforms enforce a minimum deposit of Rp 25,000. No gambling
+  transaction exists below this amount.
+- **Why it matters**: This creates a hard floor that separates judol from small normal
+  purchases (parking Rp 5K, snacks Rp 8K, coffee Rp 15K). Normal transactions frequently
+  fall below 25K; judol never does.
+- **Distinguishing features**: The floor alone is not diagnostic (most normal transactions
+  are also ≥ 25K), but the ABSENCE of sub-25K transactions for a user/merchant is a soft signal.
+- **Generator requirement**: All judol transactions must have amount ≥ Rp 25,000. Judol
+  amount distribution starts at 25K: {25K, 50K, 100K, 200K, 500K} as primary denominations.
+  Normal transactions should frequently include amounts below 25K (parking, small food, snacks)
+  to create natural contrast.
+
+#### Case J4: Smart Operator Using Non-Round Amounts
 - **Scenario**: Judol operator accepts deposits of Rp 51,000 or Rp 99,500 instead of round numbers.
 - **Why it looks normal**: Non-round amount breaks the round-amount signal.
 - **Distinguishing features**: Amounts cluster near round denominations (±2%), timing and
@@ -216,14 +229,14 @@ has realistic decision boundary difficulty.
 - **Generator requirement**: 10-15% of judol transactions use "near-round" amounts
   (round ± random(500, 2000)).
 
-#### Case J4: Casual Gambler (Low Frequency)
+#### Case J5: Casual Gambler (Low Frequency)
 - **Scenario**: User places a Rp 50,000 bet once a week — total 4-5 judol transactions per month.
 - **Why it looks normal**: Low frequency, small amounts, doesn't trigger velocity alerts.
 - **Distinguishing features**: Still targets known judol merchants, round amounts.
 - **Generator requirement**: "Casual" judol profile — 5-15 transactions total over 90 days,
   low amounts (Rp 10K-50K), no escalation.
 
-#### Case J5: Judol Through Compromised/Hybrid Merchant
+#### Case J6: Judol Through Compromised/Hybrid Merchant
 - **Scenario**: A legitimate warung's QRIS code is also used to process judol deposits.
   The same merchant_id receives both Rp 15,000 nasi goreng payments and Rp 100,000 judol
   deposits.
@@ -233,14 +246,15 @@ has realistic decision boundary difficulty.
 - **Generator requirement**: Hybrid merchants (see Section 4.2) receive both normal AND judol
   transactions through the same merchant_id.
 
-#### Case J6: Structured Small Deposits (Smurfing)
+#### Case J7: Structured Small Deposits (Smurfing)
 - **Scenario**: Instead of one Rp 500,000 deposit, the user makes 10 deposits of Rp 50,000
   spread across 3 different merchants in 2 hours.
 - **Why it looks normal**: Each individual transaction is small and unremarkable.
 - **Distinguishing features**: Rapid succession across multiple merchants, total amount is
   significant, round amounts persist.
 - **Generator requirement**: 5-10% of heavy judol users exhibit smurfing — multiple small
-  deposits at different merchants within short windows (1-3 hours).
+  deposits at different merchants within short windows (1-3 hours). Minimum per-transaction
+  amount is Rp 25,000 (platform minimum).
 
 ### 3.3 Ambiguous/Gray-Zone Scenarios
 
