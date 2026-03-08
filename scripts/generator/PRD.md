@@ -387,7 +387,7 @@ life + judol activity. The judol signal hides within the noise of normal behavio
 | Judol round amount rate (merchant-side) | 91% | **78-85%** |
 | Judol round amount rate (user-side) | 88% | **75-82%** |
 | Judol near-round rate | 0% | **10-15%** (amount = round ± random 500-2000) |
-| Normal amount sources | Single lognormal | **Profile-based**: fuel={50K,100K,200K}, pulsa={10K,25K,50K,100K}, parking={5K,10K,15K}, food=lognormal(10.5, 0.6), retail=lognormal(11.0, 0.8) |
+| Normal amount sources | Single lognormal | **Profile-based**: fuel={50K,100K,200K}, pulsa={10K,25K,50K,100K}, parking={5K,10K,15K}, food=lognormal(10.5, 0.6), retail=lognormal(11.0, 0.8). **All amounts rounded to nearest 100 or 500** — real merchant prices end in 00, 500, or 000 (e.g., Rp 149,500 not Rp 149,688). Occasional .000 endings for exact-priced items. |
 
 #### Timing Distribution Changes
 
