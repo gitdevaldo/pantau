@@ -137,3 +137,15 @@
 3. Before giving the user a training command, verify the code's assumptions match the target dataset.
 
 **Origin**: Contamination grid was hardcoded at `[0.10, 0.15, 0.20]`. User ran parametric training (15% fraud) on another server. Only discovered the mismatch when user asked about it — after training was already running.
+
+---
+
+## Principle 9: New Server = Full Setup Commands — Never Assume Anything Exists
+
+**Rule**: When the context is "other server" or any new/fresh server, ALWAYS include full setup commands: git config (user.email, user.name), dependency installation, directory creation, etc. Never assume git identity, packages, or environment are configured.
+
+**Why**: New servers have no git identity, no pip packages, no project-specific config. Giving a `git commit` command without `git config` first causes an immediate error and wastes the user's time.
+
+**How to verify**: Before giving commands for another server, mentally check: (1) Is git configured? (2) Are dependencies installed? (3) Does the repo exist? (4) Are environment variables set? If ANY of these are uncertain, include the setup commands.
+
+**Origin**: User pushed parametric training results from a new server — `git commit` failed because git identity was not configured. This is the second time incomplete commands were given for a new server (first was missing apt install + git clone + pip install).
